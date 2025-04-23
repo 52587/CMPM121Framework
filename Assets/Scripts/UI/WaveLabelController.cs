@@ -4,6 +4,10 @@ using TMPro;
 public class WaveLabelController : MonoBehaviour
 {
     TextMeshProUGUI tmp;
+    private float waveStartTime = 0f;
+    private float waveEndTime = 0f;
+    private float waveDuration = 0f;
+    private GameManager.GameState previousState;
 
     void Awake() // Use Awake for GetComponent
     {
@@ -25,6 +29,23 @@ public class WaveLabelController : MonoBehaviour
     {
         if (tmp == null) return; // Component missing
         if (GameManager.Instance == null) return; // GameManager not ready
+        if (GameManager.Instance.state != previousState)// recording time between states of INWAVE&WAVEEND
+        {
+            if (previousState == GameManager.GameState.COUNTDOWN && GameManager.Instance.state == GameManager.GameState.INWAVE)
+            {
+                waveStartTime = Time.time;
+            }
+
+            if (previousState == GameManager.GameState.INWAVE && GameManager.Instance.state == GameManager.GameState.WAVEEND)
+            {
+                waveEndTime = Time.time;
+                waveDuration = waveEndTime - waveStartTime;
+            }
+
+            previousState = GameManager.Instance.state;
+        }
+
+
 
         switch (GameManager.Instance.state)
         {
@@ -40,14 +61,14 @@ public class WaveLabelController : MonoBehaviour
                 tmp.text = $"Wave {GameManager.Instance.currentWave} | Enemies Remaining: {enemiesRemaining}";
                 break;
             case GameManager.GameState.WAVEEND:
-                // Show wave complete message
-                tmp.text = $"Wave {GameManager.Instance.currentWave} Complete!";
+                // Show wave complete message & time duration
+                tmp.text = $"Wave {GameManager.Instance.currentWave} Complete! Time: {waveDuration:F1} seconds";
                 break;
             case GameManager.GameState.PREGAME:
                 tmp.text = "Select a Level"; // Or empty
                 break;
             case GameManager.GameState.GAMEOVER:
-                tmp.text = ""; // Clear text or show final wave reached
+                tmp.text = "";// Clear text or show final wave reached
                 break;
             default:
                 tmp.text = ""; // Clear for other states
