@@ -19,6 +19,13 @@
        "hp": 30,
        "speed": 7,
        "damage": 10
+   },
+    {
+       "name": "dasher",
+       "sprite": 12,
+       "hp": 40,
+       "speed": 12,
+       "damage": 30
    }
  
 ]
