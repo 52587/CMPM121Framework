@@ -23,7 +23,15 @@
                 "count": "wave 5 / 1 wave 5 % - *",
                 "hp": "100 25 wave * +",
                 "location": "random bone"
-            }       
+            },
+       	    {
+ 		 "enemy": "dasher",
+ 		 "count": "wave 1 -",
+ 		 "hp": "base wave 2 * +",
+		 "delay": 6,
+  		 "sequence": [1],
+ 		 "location": "random red"
+	     }
         ]
    },
    {   
@@ -51,7 +59,15 @@
                 "hp": "75 50 wave * +",
                 "damage": "base 10 +",
                 "location": "random bone"
-            }       
+            },
+       	    {
+ 		 "enemy": "dasher",
+ 		 "count": "1 wave 2 / +",
+ 		 "hp": "base wave 2 * +",
+		 "delay": 4,
+  		 "sequence": [1,1],
+ 		 "location": "random red"
+	     }       
         ]
    },
    {   
@@ -78,7 +94,15 @@
                 "hp": "75 15 wave * +",
                 "damage": "base 5 -",
                 "location": "random bone"
-            }       
+            },
+       	    {
+ 		 "enemy": "dasher",
+ 		 "count": "1 wave 3 / +",
+ 		 "hp": "base wave 2 * +",
+		 "delay": 3,
+  		 "sequence": [1],
+ 		 "location": "random"
+	     }       
         ]
    }
 ]
