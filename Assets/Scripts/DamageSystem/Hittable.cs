@@ -14,12 +14,21 @@ public class Hittable
 
     public void Damage(Damage damage)
     {
-        EventBus.Instance.DoDamage(owner.transform.position, damage, this);
-        hp -= damage.amount;
-        if (hp <= 0)
+        try
         {
-            hp = 0;
-            OnDeath();
+            EventBus.Instance.DoDamage(owner.transform.position, damage, this);
+            hp -= damage.amount;
+            if (hp <= 0)
+            {
+                hp = 0;
+                OnDeath?.Invoke(); // Safely invoke, only if there are subscribers
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[Hittable.Damage] Exception occurred while applying damage or handling OnDeath for {owner?.name}. Damage amount: {damage.amount}, Type: {damage.type}. Error: {ex.ToString()}", owner);
+            // Optionally rethrow if you want the error to propagate further, but for debugging self-destruction,
+            // logging it here is key. If this is caught, the projectile's Destroy() should still run.
         }
     }
 

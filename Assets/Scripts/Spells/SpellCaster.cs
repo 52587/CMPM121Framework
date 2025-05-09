@@ -11,6 +11,7 @@ public class SpellCaster
     private Spell currentSpell; 
     public int spellPower; 
     private MonoBehaviour coroutineRunner; // Added: Reference to a MonoBehaviour
+    public MonoBehaviour CoroutineRunner => coroutineRunner; // Public getter for the coroutineRunner
 
     public bool IsOwnerActive => coroutineRunner != null && coroutineRunner.gameObject.activeInHierarchy; // Added
 

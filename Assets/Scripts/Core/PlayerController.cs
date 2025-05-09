@@ -269,6 +269,12 @@ public class PlayerController : MonoBehaviour
     void OnSpell3(InputValue value) { if (value.isPressed) SelectSpell(2); }
     void OnSpell4(InputValue value) { if (value.isPressed) SelectSpell(3); }
 
+    // Input actions for spell selection (Numpad 1, 2, 3, 4 keys)
+    void OnSpellNumpad1(InputValue value) { if (value.isPressed) SelectSpell(0); }
+    void OnSpellNumpad2(InputValue value) { if (value.isPressed) SelectSpell(1); }
+    void OnSpellNumpad3(InputValue value) { if (value.isPressed) SelectSpell(2); }
+    void OnSpellNumpad4(InputValue value) { if (value.isPressed) SelectSpell(3); }
+
 
     public void UpdatePlayerSpellsUI()
     {

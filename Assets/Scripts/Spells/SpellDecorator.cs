@@ -120,15 +120,11 @@ public abstract class SpellDecorator : Spell
 
     public override IEnumerator Cast(Vector3 where, Vector3 target, Hittable.Team team)
     {
-        // Base decorator behavior: just cast the wrapped spell.
-        // Specific decorators (like Doubler, Splitter) will override this.
-        // Ensure last_cast of this decorator instance is updated.
-        this.team = team;
-        this.last_cast = Time.time;
-        yield return owner.StartCoroutineFromOwner(wrappedSpell.Cast(where, target, team));
-        // Synchronize last_cast time with the wrapped spell if it was the one actually performing the action.
-        // However, the decorator itself is "cast", so its last_cast should be now.
-        // If wrappedSpell.Cast updates its own last_cast, that's fine.
+        // By calling base.Cast(), we ensure that Spell.Cast() executes with 'this'
+        // referring to the current decorator instance (e.g., HomingModifier).
+        // Spell.Cast() will then use this decorator's GetProjectileTrajectory(), GetName(), etc.
+        // The team and last_cast will be set by Spell.Cast on 'this' decorator instance.
+        yield return base.Cast(where, target, team);
     }
 
     protected override void OnHit(Hittable other, Vector3 impact)

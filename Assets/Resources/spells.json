@@ -77,6 +77,13 @@
        "mana_adder": "10",
        "projectile_trajectory": "homing"
    },
+   "haste": {
+        "name": "haste",
+        "description": "Reduces cooldown and mana cost.",
+        "cooldown_multiplier": "0.8",
+        "mana_multiplier": "0.9",
+        "type": "modifier"
+   },
    "arcane_nova": {
        "name": "Arcane Nova",
        "type": "base",
@@ -87,5 +94,12 @@
        "mana_cost": "25",
        "cooldown": "3",
        "projectile": {"trajectory": "straight", "speed": "3", "sprite": 0}
+   },
+   "frost": {
+    "name": "Frost",
+    "description": "Slows enemies on hit.",
+    "type": "modifier", 
+    "slow_factor": "0.3", 
+    "slow_duration": "3.0" 
    }
 }

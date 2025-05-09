@@ -284,15 +284,38 @@ public class Spell
         if (other.team != team)
         {
             Damage.Type damageType = Damage.Type.ARCANE; // Default
-            try 
+            string damageTypeStr = GetDamageType();
+
+            try
             {
-                damageType = (Damage.Type)System.Enum.Parse(typeof(Damage.Type), GetDamageType().ToUpper());
+                if (!string.IsNullOrEmpty(damageTypeStr))
+                {
+                    damageType = (Damage.Type)System.Enum.Parse(typeof(Damage.Type), damageTypeStr.ToUpper());
+                }
+                else
+                {
+                    Debug.LogWarning($"[Spell.OnHit] Damage type string is null or empty for spell '{GetName()}'. Defaulting to ARCANE.", owner?.CoroutineRunner?.gameObject);
+                }
             }
-            catch
+            catch (System.ArgumentException ex) // Catches errors from Enum.Parse (invalid string)
             {
-                Debug.LogWarning($"Invalid damage type: {GetDamageType()}. Defaulting to ARCANE.");
+                Debug.LogWarning($"[Spell.OnHit] Invalid damage type string '{damageTypeStr}' for spell '{GetName()}'. Defaulting to ARCANE. Error: {ex.Message}", owner?.CoroutineRunner?.gameObject);
             }
-            other.Damage(new Damage(GetDamage(), damageType));
+            catch (System.Exception ex) // Catch any other unexpected error during damage type parsing
+            {
+                Debug.LogError($"[Spell.OnHit] Unexpected error parsing damage type '{damageTypeStr}' for spell '{GetName()}'. Defaulting to ARCANE. Error: {ex.ToString()}", owner?.CoroutineRunner?.gameObject);
+            }
+
+            try
+            {
+                int damageAmount = GetDamage(); // This can throw if RPN evaluation fails
+                other.Damage(new Damage(damageAmount, damageType));
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[Spell.OnHit] Error applying damage for spell '{GetName()}' to '{other.owner?.name}'. Damage amount calculation or application failed. Error: {ex.ToString()}", owner?.CoroutineRunner?.gameObject);
+                // Optionally, rethrow or handle more gracefully if this spell should not proceed
+            }
         }
     }
 

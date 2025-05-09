@@ -13,7 +13,7 @@ public class SpellBuilder
     // Hardcoded lists for distinguishing spell types until a JSON field is used.
     // These should match the keys in your spells.json
     private readonly List<string> knownBaseSpellKeys = new List<string> { "arcane_bolt", "magic_missile", "arcane_blast", "arcane_spray" };
-    private readonly List<string> knownModifierSpellKeys = new List<string> { "damage_amp", "speed_amp", "doubler", "splitter", "chaos", "homing" };
+    private readonly List<string> knownModifierSpellKeys = new List<string> { "damage_amp", "speed_amp", "doubler", "splitter", "chaos", "homing", "haste", "frost" };
 
 
     public SpellBuilder()
@@ -180,6 +180,12 @@ public class SpellBuilder
                  if (wrappedSpell == null) { Debug.LogError("HomingModifier requires a spell to wrap!"); return null; }
                 // Assuming HomingModifier is in the Implementations folder now
                 return new HomingModifier(wrappedSpell, owner, spellData);
+            case "haste":
+                if (wrappedSpell == null) { Debug.LogError("HasteModifier requires a spell to wrap!"); return null; }
+                return new HasteModifier(wrappedSpell, owner, spellData);
+            case "frost":
+                if (wrappedSpell == null) { Debug.LogError("FrostModifier requires a spell to wrap!"); return null; }
+                return new FrostModifier(wrappedSpell, owner, spellData);
 
             default:
                 Debug.LogWarning($"SpellBuilder: Unknown spell key '{spellKey}'. Cannot create specific spell instance.");
