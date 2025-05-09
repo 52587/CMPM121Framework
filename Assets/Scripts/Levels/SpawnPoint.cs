@@ -10,6 +10,8 @@ public class SpawnPoint : MonoBehaviour
     public SpawnName kind;
 
     // Add a type field - you can set this in the Inspector for each SpawnPoint GameObject
+    // This 'spawnType' string is used by the EnemySpawner for location-based spawning.
+    // Make sure to edit this field in the Inspector, not the 'Kind' enum dropdown, for custom locations.
     public string spawnType = "default"; // e.g., "red", "bone", "green", or leave as "default"
 
     // Optional: Add gizmos for easier visualization in the editor
@@ -34,6 +36,7 @@ public class SpawnPoint : MonoBehaviour
             case "green": return Color.green;
             case "blue": return Color.blue; // Example if you add blue
             case "bone": return Color.white;
+            case "testclosespawnpoint": return Color.magenta; // Added for the test spawn point
             default: return Color.gray;
         }
     }

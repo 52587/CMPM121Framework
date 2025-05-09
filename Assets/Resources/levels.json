@@ -80,5 +80,21 @@
                 "location": "random bone"
             }       
         ]
+   },
+   {
+       "name": "Test Level - Single Close Enemy",
+       "waves": -1,
+       "spawns": [
+            {
+                "enemy": "zombie",
+                "count": "1",
+                "hp": "1000",
+                "damage": "base",
+                "speed": "0",
+                "delay": 0,
+                "sequence": [1],
+                "location": "TestCloseSpawnPoint"
+            }
+        ]
    }
 ]

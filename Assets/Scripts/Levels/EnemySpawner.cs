@@ -32,6 +32,7 @@ public class EnemySpawner : MonoBehaviour
     private LevelData currentLevel;
     private Coroutine waveCoroutine;
     private List<GameObject> levelButtons = new List<GameObject>(); // Keep track of created buttons
+    private SpellRewardManager spellRewardManager; // Reference to the SpellRewardManager
 
     void Start()
     {
@@ -50,6 +51,12 @@ public class EnemySpawner : MonoBehaviour
         if (returnToStartButton == null) { Debug.LogError("EnemySpawner: returnToStartButton is not assigned!", gameObject); setupError = true; }
         if (setupError) { Debug.LogError("ENEMY SPAWNER SETUP INCOMPLETE - CHECK INSPECTOR ASSIGNMENTS", gameObject); this.enabled = false; return; }
         // --- End Null Checks ---
+
+        spellRewardManager = FindFirstObjectByType<SpellRewardManager>();
+        if (spellRewardManager == null)
+        {
+            Debug.LogWarning("EnemySpawner: SpellRewardManager not found in the scene! Spell rewards will not be offered.");
+        }
 
         // Initial UI State
         waveUI.SetActive(false);
@@ -167,6 +174,18 @@ public class EnemySpawner : MonoBehaviour
             yield break; // Stop the coroutine
         }
 
+        // Update player stats for the current wave
+        PlayerController playerController = GameManager.Instance.player?.GetComponent<PlayerController>();
+        if (playerController != null)
+        {
+            Debug.Log($"[EnemySpawner] Updating player stats for wave {GameManager.Instance.currentWave}. Time: {Time.time:F3}");
+            playerController.UpdateStatsForWave(GameManager.Instance.currentWave);
+        }
+        else
+        {
+            Debug.LogError("[EnemySpawner] PlayerController not found in SpawnWave! Cannot update player stats.");
+        }
+
         // --- Countdown Phase ---
         GameManager.Instance.state = GameManager.GameState.COUNTDOWN;
         waveUI.SetActive(true); // Show parent UI
@@ -196,10 +215,16 @@ public class EnemySpawner : MonoBehaviour
                  EnemyData baseEnemyData = GameManager.Instance.GetEnemyData(spawnInfo.enemy);
                  if (baseEnemyData == null) continue; // Skip if enemy type not found
 
+                 var rpnVariables = new Dictionary<string, float>
+                 {
+                     { "wave", GameManager.Instance.currentWave },
+                     // { "base", 0 } // Add base if your RPN expressions use it for count
+                 };
+
                  try
                  {
                      // Only need to evaluate count for the total
-                     int count = RPN.Evaluate(spawnInfo.count, GameManager.Instance.currentWave, 1);
+                     int count = RPNEvaluator.EvaluateInt(spawnInfo.count, rpnVariables);
                      if (count > 0)
                      {
                          calculatedTotalForWave += count;
@@ -229,15 +254,35 @@ public class EnemySpawner : MonoBehaviour
                 string failingRpn = "N/A";
                 try
                 {
+                    var rpnVariables = new Dictionary<string, float>
+                    {
+                        { "wave", GameManager.Instance.currentWave }
+                        // Add other variables like power or base if needed by these specific RPNs
+                    };
+
                     // Calculate stats using RPN (Count is recalculated here, but needed for spawn logic)
                     failingRpn = $"count ('{spawnInfo.count}')";
-                    int count = RPN.Evaluate(spawnInfo.count, GameManager.Instance.currentWave, 1);
+                    // For count, if it can use a "base" value from baseEnemyData, it should be added to rpnVariables.
+                    // Assuming count RPNs primarily use "wave". If they need a base (e.g. baseEnemyData.count), adjust here.
+                    var countRpnVariables = new Dictionary<string, float>(rpnVariables);
+                    // countRpnVariables["base"] = baseEnemyData.defaultCount; // Example if count had a base
+                    int count = RPNEvaluator.EvaluateInt(spawnInfo.count, countRpnVariables);
+
                     failingRpn = $"hp ('{spawnInfo.hp}')";
-                    int hp = RPN.Evaluate(spawnInfo.hp, GameManager.Instance.currentWave, baseEnemyData.hp);
+                    var hpRpnVariables = new Dictionary<string, float>(rpnVariables);
+                    hpRpnVariables["base"] = baseEnemyData.hp;
+                    int hp = RPNEvaluator.EvaluateInt(spawnInfo.hp, hpRpnVariables);
+
                     failingRpn = $"damage ('{spawnInfo.damage}')";
-                    int damage = RPN.Evaluate(spawnInfo.damage, GameManager.Instance.currentWave, baseEnemyData.damage);
+                    var damageRpnVariables = new Dictionary<string, float>(rpnVariables);
+                    damageRpnVariables["base"] = baseEnemyData.damage;
+                    int damage = RPNEvaluator.EvaluateInt(spawnInfo.damage, damageRpnVariables);
+
                     failingRpn = $"speed ('{spawnInfo.speed}')";
-                    int speed = RPN.Evaluate(spawnInfo.speed, GameManager.Instance.currentWave, baseEnemyData.speed);
+                    var speedRpnVariables = new Dictionary<string, float>(rpnVariables);
+                    speedRpnVariables["base"] = baseEnemyData.speed;
+                    int speed = RPNEvaluator.EvaluateInt(spawnInfo.speed, speedRpnVariables);
+
                     failingRpn = "N/A"; // Reset if all passed
 
                     if (count > 0)
@@ -281,6 +326,8 @@ public class EnemySpawner : MonoBehaviour
         Debug.Log($"Wave {GameManager.Instance.currentWave} Complete! (Enemy count is zero)");
 
         // --- Wave End Phase ---
+        GameManager.Instance.state = GameManager.GameState.WAVEEND; // Set state to WAVEEND
+
         // Check again for win condition in case this was the last wave
          if (currentLevel.waves != -1 && GameManager.Instance.currentWave >= currentLevel.waves)
         {
@@ -288,9 +335,21 @@ public class EnemySpawner : MonoBehaviour
             yield break;
         }
 
-        // Set state and show wave end screen
-        GameManager.Instance.state = GameManager.GameState.WAVEEND;
-        ShowWaveEndScreen();
+        // Offer spell rewards if SpellRewardManager is available
+        if (spellRewardManager != null)
+        {
+            Debug.Log($"[EnemySpawner] Offering spell rewards for end of wave {GameManager.Instance.currentWave}. Time: {Time.time:F3}");
+            // Potentially set game state to REWARD_SELECTION if SpellRewardManager doesn't do it
+            // GameManager.Instance.state = GameManager.GameState.REWARD_SELECTION; 
+            spellRewardManager.OfferSpellRewards(); 
+            // SpellRewardManager will handle calling NextWave() after selection/skip.
+        }
+        else
+        {
+            // Fallback to standard wave end screen if no spell reward manager
+            Debug.LogWarning("[EnemySpawner] SpellRewardManager not found. Proceeding to standard wave end screen.");
+            ShowWaveEndScreen();
+        }
     }
 
     // Update signature to accept sequence list
@@ -379,21 +438,75 @@ public class EnemySpawner : MonoBehaviour
     {
         if (string.IsNullOrEmpty(location) || location.Equals("random", StringComparison.OrdinalIgnoreCase))
         {
-            return SpawnPoints.ToList(); // Return all points
+            Debug.Log($"[EnemySpawner] Location is '{location}', using all spawn points.");
+            return SpawnPoints.ToList();
         }
 
         string[] parts = location.Split(' ');
         if (parts.Length == 2 && parts[0].Equals("random", StringComparison.OrdinalIgnoreCase))
         {
             string type = parts[1].ToLower();
-            // Filter by type, comparing case-insensitively
-            return SpawnPoints.Where(sp => sp.spawnType.Equals(type, StringComparison.OrdinalIgnoreCase)).ToList();
+            Debug.Log($"[EnemySpawner] Location is 'random {type}', filtering by type '{type}'.");
+            List<SpawnPoint> typedPoints = SpawnPoints.Where(sp => sp != null && !string.IsNullOrEmpty(sp.spawnType) && sp.spawnType.Equals(type, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (typedPoints.Count > 0)
+            {
+                return typedPoints;
+            }
+            else
+            {
+                Debug.LogWarning($"No spawn points found for location type '{type}' in '{location}'. Using all spawn points.", gameObject);
+                return SpawnPoints.ToList(); // Fallback if type not found
+            }
+        }
+// ...existing code...
+        else if (parts.Length == 1)
+        {
+            string specificLocationName = location.ToLower();
+            Debug.Log($"[EnemySpawner] Attempting to find specific location: '{location}', lowercase: '{specificLocationName}'");
+
+            if (SpawnPoints == null || SpawnPoints.Length == 0) {
+                Debug.LogWarning("[EnemySpawner] The 'SpawnPoints' array assigned to the EnemySpawner component in the Inspector is null or empty. Cannot find specific location. Please assign your SpawnPoint GameObjects to this array.", gameObject);
+                return SpawnPoints.ToList(); // Fallback, will be an empty list if SpawnPoints is null.
+            }
+
+            Debug.Log($"[EnemySpawner] EnemySpawner has {SpawnPoints.Length} spawn point(s) assigned in its 'SpawnPoints' array (Inspector). Checking each...");
+            List<SpawnPoint> foundPoints = new List<SpawnPoint>();
+            for(int i = 0; i < SpawnPoints.Length; i++)
+            {
+                SpawnPoint sp = SpawnPoints[i];
+                if (sp == null) {
+                    Debug.LogWarning($"[EnemySpawner] SpawnPoint at index {i} in EnemySpawner's list (assigned in Inspector) is null.");
+                    continue;
+                }
+                if (string.IsNullOrEmpty(sp.spawnType)) {
+                    Debug.Log($"[EnemySpawner] SpawnPoint '{sp.gameObject.name}' (index {i}, assigned in Inspector) has a null or empty 'spawnType' string field. Current value: '{sp.spawnType}'");
+                    continue;
+                }
+                // Log the actual spawnType value from the SpawnPoint component
+                Debug.Log($"[EnemySpawner] Checking SpawnPoint '{sp.gameObject.name}' (index {i}, assigned in Inspector). Its 'spawnType' field is: '{sp.spawnType}'. Comparing with '{specificLocationName}'.");
+                if (sp.spawnType.Equals(specificLocationName, StringComparison.OrdinalIgnoreCase))
+                {
+                    foundPoints.Add(sp);
+                    Debug.Log($"[EnemySpawner] --- Match FOUND: '{sp.gameObject.name}' with spawnType '{sp.spawnType}' for location '{specificLocationName}'");
+                }
+            }
+
+            if (foundPoints.Count > 0)
+// ...existing code...
+            {
+                return foundPoints;
+            }
+            else
+            {
+                Debug.LogWarning($"No spawn points found with spawnType matching '{location}'. Using all spawn points.", gameObject);
+                return SpawnPoints.ToList(); // Fallback if specific name not found
+            }
         }
         else
         {
-            // Potentially handle specific named spawn points later if needed
-            Debug.LogWarning($"Unsupported location format: '{location}'. Using random.", gameObject);
-            return SpawnPoints.ToList(); // Fallback to all points
+            // Fallback for any other unsupported format
+            Debug.LogWarning($"Unsupported location format: '{location}'. Using all spawn points.", gameObject);
+            return SpawnPoints.ToList();
         }
     } // End of GetSpawnPointsByLocation
 

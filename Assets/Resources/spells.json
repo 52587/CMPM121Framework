@@ -76,6 +76,16 @@
        "damage_multiplier": "0.75",
        "mana_adder": "10",
        "projectile_trajectory": "homing"
+   },
+   "arcane_nova": {
+       "name": "Arcane Nova",
+       "type": "base",
+       "description": "A slow-moving orb that erupts in an area of effect on impact.",
+       "icon": 3, 
+       "damage": {"amount": "10 power 5 / +", "type": "arcane"}, 
+       "aoe_damage": {"amount": "40 power 5 / +", "radius": "3", "type": "arcane"},
+       "mana_cost": "25",
+       "cooldown": "3",
+       "projectile": {"trajectory": "straight", "speed": "3", "sprite": 0}
    }
-
 }
