@@ -120,11 +120,31 @@ public abstract class SpellDecorator : Spell
 
     public override IEnumerator Cast(Vector3 where, Vector3 target, Hittable.Team team)
     {
-        // By calling base.Cast(), we ensure that Spell.Cast() executes with 'this'
-        // referring to the current decorator instance (e.g., HomingModifier).
-        // Spell.Cast() will then use this decorator's GetProjectileTrajectory(), GetName(), etc.
-        // The team and last_cast will be set by Spell.Cast on 'this' decorator instance.
-        yield return base.Cast(where, target, team);
+        // Set the team and last_cast for this decorator instance itself.
+        // This is important if the decorator modifies cooldown or has its own cast-time effects.
+        this.team = team;
+        this.last_cast = Time.time;
+
+        if (wrappedSpell != null)
+        {
+            // Debug.Log($"[SpellDecorator.Cast] Decorator {GetName()} delegating cast to wrapped spell {wrappedSpell.GetName()} of type {wrappedSpell.GetType().Name}");
+            if (owner != null && owner.CoroutineRunner != null && owner.IsOwnerActive)
+            {
+                // Delegate to the wrapped spell's Cast method.
+                // This ensures that the specific Cast implementation of the wrapped spell (or further decorators) is called.
+                yield return owner.CoroutineRunner.StartCoroutine(wrappedSpell.Cast(where, target, team));
+            }
+            else
+            {
+                Debug.LogError($"[{GetName()}] SpellCaster (owner), its CoroutineRunner, or owner GameObject is null or inactive. Cannot delegate cast to wrapped spell: {wrappedSpell.GetName()}", owner?.CoroutineRunner);
+                yield break;
+            }
+        }
+        else
+        {
+            Debug.LogError($"[{GetName()}] Wrapped spell is null. Cannot cast.");
+            yield break;
+        }
     }
 
     protected override void OnHit(Hittable other, Vector3 impact)

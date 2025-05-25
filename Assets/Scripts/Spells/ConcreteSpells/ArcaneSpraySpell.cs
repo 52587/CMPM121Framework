@@ -16,15 +16,15 @@ public class ArcaneSpraySpell : Spell
         last_cast = Time.time;
 
         int numberOfProjectiles = GetSecondaryProjectileCountN(); // Using N from JSON
-        float sprayAngle = GetSprayAngle(); // Using spray from JSON (converted to degrees)
+        float sprayAngleRadians = GetSprayAngle(); // Using spray from JSON (in radians)
+        float sprayAngle = sprayAngleRadians * Mathf.Rad2Deg; // Convert radians to degrees
         string trajectory = GetProjectileTrajectory();
         float speed = GetProjectileSpeed();
         int sprite = GetProjectileSprite();
         float? lifetime = GetProjectileLifetime();
 
-        if (GameManager.Instance == null || GameManager.Instance.projectileManager == null)
+        if (GameManager.Instance == null)
         {
-            Debug.LogError("ArcaneSpraySpell: ProjectileManager not found!");
             yield break;
         }
 
@@ -47,11 +47,11 @@ public class ArcaneSpraySpell : Spell
 
             if (lifetime.HasValue)
             {
-                GameManager.Instance.projectileManager.CreateProjectile(sprite, trajectory, where, projectileDirection, speed, OnHit, lifetime.Value);
+                GameManager.Instance.CreateProjectile(sprite, trajectory, where, projectileDirection, speed, OnHitPublic, lifetime.Value);
             }
             else
             {
-                GameManager.Instance.projectileManager.CreateProjectile(sprite, trajectory, where, projectileDirection, speed, OnHit);
+                GameManager.Instance.CreateProjectile(sprite, trajectory, where, projectileDirection, speed, OnHitPublic);
             }
         }
         yield return new WaitForEndOfFrame(); // Wait after all projectiles are launched

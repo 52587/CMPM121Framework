@@ -4,7 +4,7 @@ using System;
 public class Hittable
 {
 
-    public enum Team { PLAYER, MONSTERS }
+    public enum Team { PLAYER, MONSTERS, NEUTRAL } // Added NEUTRAL
     public Team team;
 
     public int hp;
@@ -16,12 +16,29 @@ public class Hittable
     {
         try
         {
+            Debug.Log($"[Hittable.Damage] {owner?.name ?? "NULL"} taking {damage.amount} {damage.type} damage. HP before: {hp}/{max_hp}");
             EventBus.Instance.DoDamage(owner.transform.position, damage, this);
             hp -= damage.amount;
+            Debug.Log($"[Hittable.Damage] {owner?.name ?? "NULL"} HP after damage: {hp}/{max_hp}");
+            
             if (hp <= 0)
             {
                 hp = 0;
-                OnDeath?.Invoke(); // Safely invoke, only if there are subscribers
+                Debug.Log($"[Hittable.Damage] {owner?.name ?? "NULL"} should die! HP: {hp}. OnDeath subscribers: {OnDeath?.GetInvocationList()?.Length ?? 0}");
+                
+                if (OnDeath != null)
+                {
+                    Debug.Log($"[Hittable.Damage] Invoking OnDeath for {owner?.name ?? "NULL"}");
+                    OnDeath?.Invoke(); // Safely invoke, only if there are subscribers
+                    Debug.Log($"[Hittable.Damage] OnDeath invoked for {owner?.name ?? "NULL"}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[Hittable.Damage] {owner?.name ?? "NULL"} died but no OnDeath subscribers! Enemy will not be cleaned up.");
+                }
+                
+                // Notify EventBus that this enemy should die
+                EventBus.Instance.NotifyEnemyShouldDie(this);
             }
         }
         catch (System.Exception ex)
@@ -40,6 +57,23 @@ public class Hittable
         this.max_hp = hp;
         this.team = team;
         this.owner = owner;
+        
+        Debug.Log($"[Hittable.Constructor] Created Hittable for {owner?.name ?? "NULL"} with {hp} HP, team {team}");
+    }
+
+    // Method to debug OnDeath subscriptions
+    public void DebugOnDeathSubscriptions()
+    {
+        int subscriberCount = OnDeath?.GetInvocationList()?.Length ?? 0;
+        Debug.Log($"[Hittable.DebugOnDeathSubscriptions] {owner?.name ?? "NULL"} has {subscriberCount} OnDeath subscribers");
+        
+        if (OnDeath != null)
+        {
+            foreach (var subscriber in OnDeath.GetInvocationList())
+            {
+                Debug.Log($"[Hittable.DebugOnDeathSubscriptions] Subscriber: {subscriber.Target?.GetType().Name ?? "NULL"}.{subscriber.Method.Name}");
+            }
+        }
     }
 
     public void SetMaxHP(int max_hp)

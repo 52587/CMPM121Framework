@@ -47,6 +47,13 @@ public class SpellCaster
         this.currentSpell = spellToSet;
     }
 
+    // Add ConsumeMana method
+    public void ConsumeMana(int amount)
+    {
+        mana -= amount;
+        mana = Mathf.Max(0, mana); // Ensure mana doesn't go negative
+    }
+
     public IEnumerator Cast(Vector3 where, Vector3 target)
     {        
         Debug.Log($"[SpellCaster.Cast] Attempting to cast {currentSpell?.GetName()}. Mana: {mana}, Cost: {currentSpell?.GetManaCost()}, Ready: {currentSpell?.IsReady()}");

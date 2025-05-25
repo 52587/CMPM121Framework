@@ -30,16 +30,16 @@ public class SpellChoiceUI : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("SpellChoiceUI: spellIcon GameObject does not have an Image component.");
+                // Debug.LogWarning("SpellChoiceUI: spellIcon GameObject does not have an Image component.");
             }
         }
         else if (spellIcon == null)
         {
-            Debug.LogWarning("SpellChoiceUI: spellIcon is not assigned in the Inspector.");
+            // Debug.LogWarning("SpellChoiceUI: spellIcon is not assigned in the Inspector.");
         }
         else
         {
-            Debug.LogWarning("SpellChoiceUI: GameManager.Instance or spellIconManager is null. Cannot set spell icon.");
+            // Debug.LogWarning("SpellChoiceUI: GameManager.Instance or spellIconManager is null. Cannot set spell icon.");
         }
 
         if (spellNameText != null)
@@ -79,7 +79,7 @@ public class SpellChoiceUI : MonoBehaviour
         }
         else
         {
-            Debug.LogError("SpellChoiceUI: Select Button is not assigned in the Inspector.");
+            // Debug.LogError("SpellChoiceUI: Select Button is not assigned in the Inspector.");
         }
     }
 
@@ -91,7 +91,71 @@ public class SpellChoiceUI : MonoBehaviour
         }
         else
         {
-            Debug.LogError("SpellChoiceUI: RewardManager reference is null.");
+            // Debug.LogError("SpellChoiceUI: RewardManager reference is null.");
+        }
+    }
+
+    void Start()
+    {
+        // Debug.LogError("SpellChoiceUI: Select Button is not assigned in the Inspector.");
+        if (selectButton == null)
+        {
+            // Debug.LogError("SpellChoiceUI: Select Button is not assigned in the Inspector.");
+            return; // Early exit if button is not assigned
+        }
+
+        // Additional initialization if needed
+    }
+
+    public void SetSpell(Spell spell, SpellRewardManager rewardManager)
+    {
+        this.currentSpell = spell;
+        this.rewardManager = rewardManager; // Store the reference
+
+        if (rewardManager == null)
+        {
+            // Debug.LogError("SpellChoiceUI: RewardManager reference is null.");
+            // Potentially disable the button or show an error state
+        }
+
+        if (GameManager.Instance != null && GameManager.Instance.spellIconManager != null && spellIcon != null)
+        {
+            Image iconImage = spellIcon.GetComponent<Image>();
+            if (iconImage != null)
+            {
+                GameManager.Instance.spellIconManager.PlaceSprite(spell.GetIcon(), iconImage);
+            }
+            else
+            {
+                // Debug.LogWarning("SpellChoiceUI: spellIcon GameObject does not have an Image component.");
+            }
+        }
+        else if (spellIcon == null)
+        {
+            // Debug.LogWarning("SpellChoiceUI: spellIcon is not assigned in the Inspector.");
+        }
+        else
+        {
+            // Debug.LogWarning("SpellChoiceUI: GameManager.Instance or spellIconManager is null. Cannot set spell icon.");
+        }
+
+        // Update Spell Name Text
+        if (spellNameText != null)
+        {
+            spellNameText.text = spell.GetName();
+        }
+
+        // Update Spell Description Text
+        if (spellDescriptionText != null)
+        {
+            spellDescriptionText.text = spell.GetDescription();
+        }
+
+        // Configure the select button
+        if (selectButton != null)
+        {
+            selectButton.onClick.RemoveAllListeners();
+            selectButton.onClick.AddListener(() => OnSelectButtonClicked());
         }
     }
 }

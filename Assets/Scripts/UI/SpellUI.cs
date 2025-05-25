@@ -23,7 +23,28 @@ public class SpellUI : MonoBehaviour
     public void SetSpell(Spell spell)
     {
         this.spell = spell;
-        GameManager.Instance.spellIconManager.PlaceSprite(spell.GetIcon(), icon.GetComponent<Image>());
+        if (GameManager.Instance != null && GameManager.Instance.spellIconManager != null && icon != null)
+        {
+            Image iconImage = icon.GetComponent<Image>();
+            if (iconImage != null)
+            {
+                GameManager.Instance.spellIconManager.PlaceSprite(spell.GetIcon(), iconImage);
+            }
+            else
+            {
+                // Debug.LogWarning("SpellUI: Icon component doesn't have an Image component.");
+            }
+        }
+        else
+        {
+            // Debug.LogWarning("SpellUI: GameManager.Instance.spellIconManager or icon is null.");
+        }
+
+        if (cooldown != null)
+        {
+            // Enable or show the cooldown UI element
+            cooldown.gameObject.SetActive(true);
+        }
     }
 
     // Update is called once per frame

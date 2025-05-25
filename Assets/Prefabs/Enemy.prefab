@@ -106,6 +106,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 0}
   speed: 5
+  damage: 5
   healthui: {fileID: 7326907792581316403}
   dead: 0
   last_attack: 0

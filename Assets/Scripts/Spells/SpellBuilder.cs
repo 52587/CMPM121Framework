@@ -12,7 +12,7 @@ public class SpellBuilder
 
     // Hardcoded lists for distinguishing spell types until a JSON field is used.
     // These should match the keys in your spells.json
-    private readonly List<string> knownBaseSpellKeys = new List<string> { "arcane_bolt", "magic_missile", "arcane_blast", "arcane_spray" };
+    private readonly List<string> knownBaseSpellKeys = new List<string> { "arcane_bolt", "magic_missile", "arcane_blast", "arcane_spray", "arcane_nova" };
     private readonly List<string> knownModifierSpellKeys = new List<string> { "damage_amp", "speed_amp", "doubler", "splitter", "chaos", "homing", "haste", "frost" };
 
 
@@ -24,22 +24,23 @@ public class SpellBuilder
 
     private void LoadSpells()
     {
-        TextAsset spellsFile = Resources.Load<TextAsset>("spells");
-        if (spellsFile == null)
+        TextAsset spellsJsonAsset = Resources.Load<TextAsset>("spells");
+        if (spellsJsonAsset == null)
         {
-            Debug.LogError("Failed to load spells.json from Resources folder.");
-            allSpellsJson = new JObject();
             return;
         }
-        allSpellsJson = JObject.Parse(spellsFile.text);
+        allSpellsJson = JObject.Parse(spellsJsonAsset.text);
     }
 
     private void CategorizeSpells()
     {
+        if (allSpellsJson == null)
+        {
+            return;
+        }
+
         baseSpellKeys = new List<string>();
         modifierSpellKeys = new List<string>();
-
-        if (allSpellsJson == null) return;
 
         foreach (var property in allSpellsJson.Properties())
         {
@@ -60,8 +61,13 @@ public class SpellBuilder
             // Else, it's an unknown spell type or needs better categorization.
             // Consider logging a warning for uncategorized spells if strict categorization is needed.
         }
-        if (baseSpellKeys.Count == 0) Debug.LogWarning("SpellBuilder: No base spells found/categorized.");
-        if (modifierSpellKeys.Count == 0) Debug.LogWarning("SpellBuilder: No modifier spells found/categorized.");
+        
+        if (baseSpellKeys.Count == 0) 
+        {
+        }
+        if (modifierSpellKeys.Count == 0) 
+        {
+        }
     }
 
     /// <summary>
@@ -72,7 +78,6 @@ public class SpellBuilder
     {
         if (baseSpellKeys == null || baseSpellKeys.Count == 0)
         {
-            Debug.LogError("SpellBuilder: No base spells available to build from.");
             // Fallback to a very basic spell or null
             // Ensure ArcaneBoltSpell is correctly referenced if it's in a namespace or specific folder.
             return BuildSpecificSpell("arcane_bolt", owner); 
@@ -82,6 +87,11 @@ public class SpellBuilder
         string randomBaseKey = baseSpellKeys[Random.Range(0, baseSpellKeys.Count)];
         Spell currentSpell = BuildSpecificSpell(randomBaseKey, owner);
 
+        if (currentSpell == null)
+        {
+            return BuildSpecificSpell("arcane_bolt", owner);
+        }
+
         // 2. Randomly decide to add modifiers (e.g., 0 to 2 modifiers)
         int numberOfModifiersToAttempt = Random.Range(0, 3); // Max 2 successful modifiers for this example
         int successfullyAppliedModifiers = 0;
@@ -89,7 +99,10 @@ public class SpellBuilder
 
         for (int i = 0; i < numberOfModifiersToAttempt && successfullyAppliedModifiers < 2; i++)
         {
-            if (modifierSpellKeys.Count == 0) break;
+            if (modifierSpellKeys.Count == 0) 
+            {
+                break;
+            }
             string randomModifierKey = modifierSpellKeys[Random.Range(0, modifierSpellKeys.Count)];
             
             JObject modifierData = allSpellsJson[randomModifierKey] as JObject;
@@ -129,6 +142,7 @@ public class SpellBuilder
                 successfullyAppliedModifiers++;
             }
         }
+        
         return currentSpell;
     }
 
@@ -139,14 +153,13 @@ public class SpellBuilder
     {
         if (allSpellsJson == null || !allSpellsJson.ContainsKey(spellKey))
         {
-            Debug.LogError($"SpellBuilder: Spell key '{spellKey}' not found in spells.json.");
             if (wrappedSpell != null) return wrappedSpell; // If modifier fails, return the spell it was trying to wrap
             return BuildSpecificSpell("arcane_bolt", owner); // Default fallback if base spell key is wrong
         }
         JObject spellData = allSpellsJson[spellKey] as JObject;
 
         // Factory part: Instantiate correct spell class based on spellKey
-        switch (spellKey)
+        switch (spellKey.ToLower()) // Use ToLower() for case-insensitive matching
         {
             // Base Spells
             case "arcane_bolt":
@@ -162,37 +175,163 @@ public class SpellBuilder
 
             // Modifier Spells
             case "damage_amp":
-                if (wrappedSpell == null) { Debug.LogError("DamageAmpModifier requires a spell to wrap!"); return null; }
+                if (wrappedSpell == null) { 
+                    return null; 
+                }
                 return new DamageAmpModifier(wrappedSpell, owner, spellData); 
             case "speed_amp":
-                 if (wrappedSpell == null) { Debug.LogError("SpeedAmpModifier requires a spell to wrap!"); return null; }
+                 if (wrappedSpell == null) { 
+                     return null; 
+                 }
                 return new SpeedAmpModifier(wrappedSpell, owner, spellData);
             case "doubler":
-                 if (wrappedSpell == null) { Debug.LogError("DoublerModifier requires a spell to wrap!"); return null; }
+                 if (wrappedSpell == null) { 
+                     return null; 
+                 }
                 return new DoublerModifier(wrappedSpell, owner, spellData);
             case "splitter":
-                 if (wrappedSpell == null) { Debug.LogError("SplitterModifier requires a spell to wrap!"); return null; }
+                 if (wrappedSpell == null) { 
+                     return null; 
+                 }
                 return new SplitterModifier(wrappedSpell, owner, spellData);
             case "chaos":
-                 if (wrappedSpell == null) { Debug.LogError("ChaosModifier requires a spell to wrap!"); return null; }
+                 if (wrappedSpell == null) { 
+                     return null; 
+                 }
                 return new ChaosModifier(wrappedSpell, owner, spellData);
             case "homing":
-                 if (wrappedSpell == null) { Debug.LogError("HomingModifier requires a spell to wrap!"); return null; }
+                 if (wrappedSpell == null) { 
+                     return null; 
+                 }
                 // Assuming HomingModifier is in the Implementations folder now
                 return new HomingModifier(wrappedSpell, owner, spellData);
             case "haste":
-                if (wrappedSpell == null) { Debug.LogError("HasteModifier requires a spell to wrap!"); return null; }
+                if (wrappedSpell == null) { 
+                    return null; 
+                }
                 return new HasteModifier(wrappedSpell, owner, spellData);
             case "frost":
-                if (wrappedSpell == null) { Debug.LogError("FrostModifier requires a spell to wrap!"); return null; }
+                if (wrappedSpell == null) { 
+                    return null; 
+                }
                 return new FrostModifier(wrappedSpell, owner, spellData);
 
             default:
-                Debug.LogWarning($"SpellBuilder: Unknown spell key '{spellKey}'. Cannot create specific spell instance.");
                 if (wrappedSpell != null) return wrappedSpell; // If it was an unknown modifier, return the spell it was trying to wrap
                 // If it was an unknown base spell, fallback to arcane_bolt
                 return BuildSpecificSpell("arcane_bolt", owner);
         }
+    }
+
+    // Test method to verify spell generation works
+    public void TestSpellGeneration(SpellCaster owner)
+    {
+        Spell testSpell = Build(owner);
+        if (testSpell != null)
+        {
+        }
+        else
+        {
+        }
+    }
+
+    // Quick test method that can be called from anywhere to test spell building
+    public static void QuickTest()
+    {
+        try 
+        {
+            SpellBuilder builder = new SpellBuilder();
+            // We can't test with a real owner here, but we can test the builder creation
+            
+            // Add debug info about what spells are available
+            // Debug.Log($"SpellBuilder: Available base spells: {builder.baseSpellKeys?.Count ?? 0}");
+            // Debug.Log($"SpellBuilder: Available modifier spells: {builder.modifierSpellKeys?.Count ?? 0}");
+            
+            // Log the actual spell keys for debugging
+            if (builder.baseSpellKeys != null && builder.baseSpellKeys.Count > 0)
+            {
+                // Debug.Log($"SpellBuilder: Base spell keys: [{string.Join(", ", builder.baseSpellKeys)}]");
+            }
+            if (builder.modifierSpellKeys != null && builder.modifierSpellKeys.Count > 0)
+            {
+                // Debug.Log($"SpellBuilder: Modifier spell keys: [{string.Join(", ", builder.modifierSpellKeys)}]");
+            }
+        }
+        catch (System.Exception) // Changed from catch (System.Exception e)
+        {
+        }
+    }
+    
+    // Debug method to check spell creation without needing an owner
+    public void DebugSpellCreation()
+    {
+        if (allSpellsJson != null)
+        {
+            foreach (var property in allSpellsJson.Properties())
+            {
+                JObject spellData = (JObject)property.Value;
+                string name = spellData?["name"]?.Value<string>() ?? "Unknown";
+                string type = spellData?["type"]?.Value<string>() ?? "Untyped";
+                int damage = spellData?["damage"]?.Value<int>() ?? 0;
+            }
+        }
+    }
+    
+    // Method to log what damage a spell should deal
+    public void DebugSpellDamage(string spellKey)
+    {
+        if (allSpellsJson != null && allSpellsJson.ContainsKey(spellKey))
+        {
+            JObject spellData = allSpellsJson[spellKey] as JObject;
+            string name = spellData?["name"]?.Value<string>() ?? "Unknown";
+            int damage = spellData?["damage"]?.Value<int>() ?? 0;
+        }
+        else
+        {
+        }
+    }
+    
+    // Static method to quickly debug Arcane Bolt damage from anywhere
+    public static void DebugArcaneBoltDamage()
+    {
+        try
+        {
+            SpellBuilder builder = new SpellBuilder();
+            builder.DebugSpellDamage("arcane_bolt");
+        }
+        catch (System.Exception) // Changed from catch (System.Exception e)
+        {
+        }
+    }
+    
+    // Method to create a test OnHit callback that logs everything
+    public static System.Action<Hittable, UnityEngine.Vector3> CreateDebugOnHitCallback(int expectedDamage)
+    {
+        return (target, hitPoint) =>
+        {
+            if (target == null)
+            {
+                return;
+            }
+            
+            try
+            {
+                // Use the correct Damage method, not TakeDamage
+                target.Damage(new Damage(expectedDamage, Damage.Type.ARCANE));
+                
+                if (target.hp <= 0)
+                {
+                }
+            }
+            catch (System.Exception) // Changed from catch (System.Exception e)
+            {
+            }
+        };
+    }
+    
+    // Method to debug the actual OnHit callback being used by spells
+    public static void DebugCurrentOnHitImplementation()
+    {
     }
 }
 

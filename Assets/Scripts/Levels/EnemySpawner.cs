@@ -1,11 +1,12 @@
 using UnityEngine;
-using System; // Add this line
-using System.Collections.Generic;
 using UnityEngine.UI;
+using TMPro;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
-using TMPro; // Use TextMeshPro for better text rendering
-using UnityEngine.SceneManagement; // For restarting the game
+using System; // For Exception, StringComparison
+using UnityEngine.SceneManagement; // For SceneManager
+using Relics;         // Added for RelicRewardManager, potentially useful
 
 public class EnemySpawner : MonoBehaviour
 {
@@ -33,6 +34,11 @@ public class EnemySpawner : MonoBehaviour
     private Coroutine waveCoroutine;
     private List<GameObject> levelButtons = new List<GameObject>(); // Keep track of created buttons
     private SpellRewardManager spellRewardManager; // Reference to the SpellRewardManager
+    private RelicRewardManager relicRewardManager; // Reference to the RelicRewardManager
+    
+    // Track reward completion for dual rewards
+    private bool spellRewardCompleted = false;
+    private bool relicRewardCompleted = false;
 
     void Start()
     {
@@ -56,6 +62,12 @@ public class EnemySpawner : MonoBehaviour
         if (spellRewardManager == null)
         {
             Debug.LogWarning("EnemySpawner: SpellRewardManager not found in the scene! Spell rewards will not be offered.");
+        }
+
+        relicRewardManager = FindFirstObjectByType<RelicRewardManager>();
+        if (relicRewardManager == null)
+        {
+            Debug.LogWarning("EnemySpawner: RelicRewardManager not found in the scene! Relic rewards will not be offered.");
         }
 
         // Initial UI State
@@ -103,7 +115,7 @@ public class EnemySpawner : MonoBehaviour
     public void StartLevel(LevelData level) // Changed parameter type
     {
         if (level == null) { Debug.LogError("StartLevel called with null level data!"); return; }
-        Debug.Log($"Starting Level: {level.name}");
+        // Debug.Log($"Starting Level: {level.name}"); // Kept for high-level info, can be commented if too much
 
         // Hide level selection
         levelSelectionPanel.SetActive(false);
@@ -136,7 +148,7 @@ public class EnemySpawner : MonoBehaviour
 
 
         // --- Add Log ---
-        Debug.Log($"[EnemySpawner] NextWave() called. Current Wave before potential start: {GameManager.Instance.currentWave}. State: {GameManager.Instance.state}. Time: {Time.time:F3}");
+        // Debug.Log($"[EnemySpawner] NextWave() called. Current Wave before potential start: {GameManager.Instance.currentWave}. State: {GameManager.Instance.state}. Time: {Time.time:F3}");
 
         if (currentLevel == null) { Debug.LogWarning("NextWave called but currentLevel is null."); return; }
 
@@ -144,21 +156,21 @@ public class EnemySpawner : MonoBehaviour
         if (waveCoroutine != null)
         {
              // --- Add Log ---
-             Debug.Log($"[EnemySpawner] Stopping existing waveCoroutine. Time: {Time.time:F3}");
+             // Debug.Log($"[EnemySpawner] Stopping existing waveCoroutine. Time: {Time.time:F3}");
             StopCoroutine(waveCoroutine); // Stop previous wave coroutine just in case
         }
          // --- Add Log ---
-         Debug.Log($"[EnemySpawner] Starting SpawnWave coroutine. Time: {Time.time:F3}");
+         // Debug.Log($"[EnemySpawner] Starting SpawnWave coroutine. Time: {Time.time:F3}");
         waveCoroutine = StartCoroutine(SpawnWave());
     }
 
     IEnumerator SpawnWave()
     {
         // --- Add Log ---
-        Debug.Log($"[EnemySpawner] SpawnWave coroutine started. Current Wave BEFORE increment: {GameManager.Instance.currentWave}. Time: {Time.time:F3}");
+        // Debug.Log($"[EnemySpawner] SpawnWave coroutine started. Current Wave BEFORE increment: {GameManager.Instance.currentWave}. Time: {Time.time:F3}");
         GameManager.Instance.currentWave++;
          // --- Add Log ---
-         Debug.Log($"[EnemySpawner] SpawnWave: Incremented wave to {GameManager.Instance.currentWave}. Time: {Time.time:F3}");
+         // Debug.Log($"[EnemySpawner] SpawnWave: Incremented wave to {GameManager.Instance.currentWave}. Time: {Time.time:F3}");
 
         // Reset wave-specific counts in GameManager
         GameManager.Instance.totalEnemiesThisWave = 0;
@@ -178,7 +190,7 @@ public class EnemySpawner : MonoBehaviour
         PlayerController playerController = GameManager.Instance.player?.GetComponent<PlayerController>();
         if (playerController != null)
         {
-            Debug.Log($"[EnemySpawner] Updating player stats for wave {GameManager.Instance.currentWave}. Time: {Time.time:F3}");
+            // Debug.Log($"[EnemySpawner] Updating player stats for wave {GameManager.Instance.currentWave}. Time: {Time.time:F3}");
             playerController.UpdateStatsForWave(GameManager.Instance.currentWave);
         }
         else
@@ -200,11 +212,23 @@ public class EnemySpawner : MonoBehaviour
             GameManager.Instance.countdown--; // GameManager updates its own countdown
         }
         countdownText.gameObject.SetActive(false); // Hide countdown text after countdown
-
         // --- Spawning Phase ---
         GameManager.Instance.state = GameManager.GameState.INWAVE;
+        
+        // Notify EventBus that the wave has started for timing system integration
+        if (EventBus.Instance != null)
+        {
+            EventBus.Instance.NotifyWaveStarted(GameManager.Instance.currentWave);
+            string activeRelicNamesOnStart = "RelicManager N/A or no active relics";
+            if (GameManager.Instance.relicManager != null && GameManager.Instance.relicManager.activeRelics != null && GameManager.Instance.relicManager.activeRelics.Count > 0)
+            {
+                activeRelicNamesOnStart = "Active Relics: " + string.Join(", ", GameManager.Instance.relicManager.activeRelics.Select(r => r.Name));
+            }
+            Debug.Log($"[EnemySpawner] Notified EventBus: Wave {GameManager.Instance.currentWave} started. {activeRelicNamesOnStart}. Expecting \'wave-start\' relic triggers.");
+        }
+        
         // Button remains INACTIVE during spawning and INWAVE state
-        Debug.Log($"Spawning enemies for Wave {GameManager.Instance.currentWave}");
+        // Debug.Log($"Spawning enemies for Wave {GameManager.Instance.currentWave}");
 
         List<Coroutine> spawningCoroutines = new List<Coroutine>();
         if (currentLevel.spawns != null)
@@ -237,7 +261,7 @@ public class EnemySpawner : MonoBehaviour
                  }
             }
             GameManager.Instance.totalEnemiesThisWave = calculatedTotalForWave; // Set the total in GameManager
-            Debug.Log($"Calculated total enemies for wave {GameManager.Instance.currentWave}: {GameManager.Instance.totalEnemiesThisWave}");
+            // Debug.Log($"Calculated total enemies for wave {GameManager.Instance.currentWave}: {GameManager.Instance.totalEnemiesThisWave}");
             // --- End Calculation ---
 
 
@@ -262,6 +286,7 @@ public class EnemySpawner : MonoBehaviour
 
                     // Calculate stats using RPN (Count is recalculated here, but needed for spawn logic)
                     failingRpn = $"count ('{spawnInfo.count}')";
+
                     // For count, if it can use a "base" value from baseEnemyData, it should be added to rpnVariables.
                     // Assuming count RPNs primarily use "wave". If they need a base (e.g. baseEnemyData.count), adjust here.
                     var countRpnVariables = new Dictionary<string, float>(rpnVariables);
@@ -269,16 +294,19 @@ public class EnemySpawner : MonoBehaviour
                     int count = RPNEvaluator.EvaluateInt(spawnInfo.count, countRpnVariables);
 
                     failingRpn = $"hp ('{spawnInfo.hp}')";
+
                     var hpRpnVariables = new Dictionary<string, float>(rpnVariables);
                     hpRpnVariables["base"] = baseEnemyData.hp;
                     int hp = RPNEvaluator.EvaluateInt(spawnInfo.hp, hpRpnVariables);
 
                     failingRpn = $"damage ('{spawnInfo.damage}')";
+
                     var damageRpnVariables = new Dictionary<string, float>(rpnVariables);
                     damageRpnVariables["base"] = baseEnemyData.damage;
                     int damage = RPNEvaluator.EvaluateInt(spawnInfo.damage, damageRpnVariables);
 
                     failingRpn = $"speed ('{spawnInfo.speed}')";
+
                     var speedRpnVariables = new Dictionary<string, float>(rpnVariables);
                     speedRpnVariables["base"] = baseEnemyData.speed;
                     int speed = RPNEvaluator.EvaluateInt(spawnInfo.speed, speedRpnVariables);
@@ -287,7 +315,7 @@ public class EnemySpawner : MonoBehaviour
 
                     if (count > 0)
                     {
-                         Debug.Log($"Spawning {count} of {spawnInfo.enemy} (HP:{hp}, DMG:{damage}, SPD:{speed}) with delay {spawnInfo.delay}");
+                         // Debug.Log($"Spawning {count} of {spawnInfo.enemy} (HP:{hp}, DMG:{damage}, SPD:{speed}) with delay {spawnInfo.delay}");
                          // Pass spawnInfo.sequence and spawnInfo.location
                          spawningCoroutines.Add(StartCoroutine(SpawnEnemySequence(baseEnemyData, count, hp, damage, speed, spawnInfo.delay, spawnInfo.location, spawnInfo.sequence))); // Pass sequence
                     }
@@ -302,19 +330,54 @@ public class EnemySpawner : MonoBehaviour
         } else { Debug.LogWarning($"Level '{currentLevel.name}' has no spawn data defined."); }
 
         // --- Wait for Spawning to Complete ---
-        Debug.Log($"Waiting for {spawningCoroutines.Count} spawning coroutines to finish...");
+        // Debug.Log($"Waiting for {spawningCoroutines.Count} spawning coroutines to finish...");
         foreach (Coroutine spawnCoroutine in spawningCoroutines)
         {
             yield return spawnCoroutine; // Wait for this specific SpawnEnemySequence coroutine to end
         }
-        Debug.Log("All spawning coroutines for wave finished.");
+        // Debug.Log("All spawning coroutines for wave finished.");
         // --- End Wait for Spawning ---
 
         // --- Wave Active Phase ---
         // Now that spawning is guaranteed complete, wait until all enemies are defeated
-        Debug.Log($"Spawning complete. Waiting for enemy count ({GameManager.Instance.enemy_count}) to reach zero.");
-        // Ensure state is still INWAVE before waiting (player might die during spawn)
-        yield return new WaitUntil(() => GameManager.Instance.state == GameManager.GameState.INWAVE && GameManager.Instance.enemy_count <= 0);
+        // Debug.Log($"Spawning complete. Waiting for enemy count ({GameManager.Instance.enemy_count}) to reach zero.");
+        // Debug.Log($"[EnemySpawner] Current state: {GameManager.Instance.state}, Enemy count: {GameManager.Instance.enemy_count}");
+        
+        // Add a timeout mechanism and better debugging
+        float waitStartTime = Time.time;
+        float maxWaitTime = 300f; // 5 minutes timeout
+        
+        while (GameManager.Instance.state == GameManager.GameState.INWAVE && GameManager.Instance.enemy_count > 0)
+        {
+            // Debug every 5 seconds
+            if (Time.time - waitStartTime > 5f && (Time.time - waitStartTime) % 5f < 0.1f)
+            {
+                string activeRelicInfoDuringWave = "RelicManager N/A";
+                if (GameManager.Instance.relicManager != null && GameManager.Instance.relicManager.activeRelics != null)
+                {
+                    if (GameManager.Instance.relicManager.activeRelics.Count == 0) 
+                    {
+                        activeRelicInfoDuringWave = "No active relics";
+                    }
+                    else 
+                    {
+                        activeRelicInfoDuringWave = $"Active Relics ({GameManager.Instance.relicManager.activeRelics.Count}): " + 
+                                                    string.Join(", ", GameManager.Instance.relicManager.activeRelics.Select(r => 
+                                                        $"{r.Name} (Effect: {(r.Effect != null ? r.Effect.GetType().Name : "N/A")}, Active: {(r.Effect != null && r.Effect is Relics.RelicEffect re && re.gameObject.activeInHierarchy ? re.IsActive().ToString() : "N/A")})"));
+                    }
+                }
+                Debug.Log($"[EnemySpawner] Wave {GameManager.Instance.currentWave} active. State: {GameManager.Instance.state}, Enemy count: {GameManager.Instance.enemy_count}. Relics: {activeRelicInfoDuringWave}. Time elapsed: {Time.time - waitStartTime:F1}s");
+            }
+            
+            // Timeout check
+            if (Time.time - waitStartTime > maxWaitTime)
+            {
+                Debug.LogError($"[EnemySpawner] Wave completion timeout! Force completing wave. Enemy count: {GameManager.Instance.enemy_count}");
+                break;
+            }
+            
+            yield return new WaitForSeconds(0.1f); // Check every 0.1 seconds instead of every frame
+        }
 
         // If state changed away from INWAVE (e.g., GAMEOVER), exit wave logic
         if (GameManager.Instance.state != GameManager.GameState.INWAVE)
@@ -323,32 +386,59 @@ public class EnemySpawner : MonoBehaviour
              yield break;
         }
 
-        Debug.Log($"Wave {GameManager.Instance.currentWave} Complete! (Enemy count is zero)");
-
-        // --- Wave End Phase ---
+        // Debug.Log($"Wave {GameManager.Instance.currentWave} Complete! (Enemy count is zero)");        // --- Wave End Phase ---
         GameManager.Instance.state = GameManager.GameState.WAVEEND; // Set state to WAVEEND
+
+        // Notify EventBus that the wave has ended for timing system integration
+        if (EventBus.Instance != null)
+        {
+            EventBus.Instance.NotifyWaveEnded();
+            string relicSummaryOnEnd = "RelicManager N/A or no active relics";
+            if (GameManager.Instance.relicManager != null && GameManager.Instance.relicManager.activeRelics != null && GameManager.Instance.relicManager.activeRelics.Count > 0)
+            {
+                relicSummaryOnEnd = "Relics Status Post-Wave: " + string.Join(", ", GameManager.Instance.relicManager.activeRelics.Select(r => 
+                                            $"{r.Name} (Effect: {(r.Effect != null ? r.Effect.GetType().Name : "N/A")}, Active: {(r.Effect != null && r.Effect is Relics.RelicEffect re && re.gameObject.activeInHierarchy ? re.IsActive().ToString() : "N/A")})"));
+            }
+            Debug.Log($"[EnemySpawner] Notified EventBus: Wave {GameManager.Instance.currentWave} ended. {relicSummaryOnEnd}. Expecting \'duration\' cleanups / \'wave-end\' triggers.");
+        }
 
         // Check again for win condition in case this was the last wave
          if (currentLevel.waves != -1 && GameManager.Instance.currentWave >= currentLevel.waves)
         {
             WinGame();
             yield break;
-        }
+        }        // Reset reward completion flags
+        spellRewardCompleted = false;
+        relicRewardCompleted = false;
+        
+        // Offer only spell rewards initially - SpellRewardManager will handle the sequential flow
+        bool hasSpellRewards = spellRewardManager != null;
 
-        // Offer spell rewards if SpellRewardManager is available
-        if (spellRewardManager != null)
+        if (hasSpellRewards)
         {
-            Debug.Log($"[EnemySpawner] Offering spell rewards for end of wave {GameManager.Instance.currentWave}. Time: {Time.time:F3}");
-            // Potentially set game state to REWARD_SELECTION if SpellRewardManager doesn't do it
-            // GameManager.Instance.state = GameManager.GameState.REWARD_SELECTION; 
+            // Debug.Log($"[EnemySpawner] Offering spell rewards for end of wave {GameManager.Instance.currentWave}. Time: {Time.time:F3}");
             spellRewardManager.OfferSpellRewards(); 
-            // SpellRewardManager will handle calling NextWave() after selection/skip.
         }
         else
         {
-            // Fallback to standard wave end screen if no spell reward manager
-            Debug.LogWarning("[EnemySpawner] SpellRewardManager not found. Proceeding to standard wave end screen.");
+            // No spell rewards available, skip both phases
+            spellRewardCompleted = true;
+            relicRewardCompleted = true;
+        }        if (!hasSpellRewards)
+        {
+            // No rewards available, show standard wave end screen
+            Debug.LogWarning("[EnemySpawner] No reward managers found. Proceeding to standard wave end screen.");
             ShowWaveEndScreen();
+        }
+        else
+        {
+            // Wait for both rewards to be completed before proceeding
+            // Debug.Log($"[EnemySpawner] Waiting for rewards to complete. Spell: {spellRewardCompleted}, Relic: {relicRewardCompleted}");
+            yield return new WaitUntil(() => spellRewardCompleted && relicRewardCompleted);
+            
+            // Both rewards completed, proceed to next wave automatically
+            // Debug.Log("[EnemySpawner] Both rewards completed, proceeding to next wave.");
+            NextWave();
         }
     }
 
@@ -438,7 +528,7 @@ public class EnemySpawner : MonoBehaviour
     {
         if (string.IsNullOrEmpty(location) || location.Equals("random", StringComparison.OrdinalIgnoreCase))
         {
-            Debug.Log($"[EnemySpawner] Location is '{location}', using all spawn points.");
+            // Debug.Log($"[EnemySpawner] Location is '{location}', using all spawn points.");
             return SpawnPoints.ToList();
         }
 
@@ -446,7 +536,7 @@ public class EnemySpawner : MonoBehaviour
         if (parts.Length == 2 && parts[0].Equals("random", StringComparison.OrdinalIgnoreCase))
         {
             string type = parts[1].ToLower();
-            Debug.Log($"[EnemySpawner] Location is 'random {type}', filtering by type '{type}'.");
+            // Debug.Log($"[EnemySpawner] Location is 'random {type}', filtering by type '{type}'.");
             List<SpawnPoint> typedPoints = SpawnPoints.Where(sp => sp != null && !string.IsNullOrEmpty(sp.spawnType) && sp.spawnType.Equals(type, StringComparison.OrdinalIgnoreCase)).ToList();
             if (typedPoints.Count > 0)
             {
@@ -458,18 +548,17 @@ public class EnemySpawner : MonoBehaviour
                 return SpawnPoints.ToList(); // Fallback if type not found
             }
         }
-// ...existing code...
         else if (parts.Length == 1)
         {
             string specificLocationName = location.ToLower();
-            Debug.Log($"[EnemySpawner] Attempting to find specific location: '{location}', lowercase: '{specificLocationName}'");
+            // Debug.Log($"[EnemySpawner] Attempting to find specific location: '{location}', lowercase: '{specificLocationName}'");
 
             if (SpawnPoints == null || SpawnPoints.Length == 0) {
                 Debug.LogWarning("[EnemySpawner] The 'SpawnPoints' array assigned to the EnemySpawner component in the Inspector is null or empty. Cannot find specific location. Please assign your SpawnPoint GameObjects to this array.", gameObject);
                 return SpawnPoints.ToList(); // Fallback, will be an empty list if SpawnPoints is null.
             }
 
-            Debug.Log($"[EnemySpawner] EnemySpawner has {SpawnPoints.Length} spawn point(s) assigned in its 'SpawnPoints' array (Inspector). Checking each...");
+            // Debug.Log($"[EnemySpawner] EnemySpawner has {SpawnPoints.Length} spawn point(s) assigned in its 'SpawnPoints' array (Inspector). Checking each...");
             List<SpawnPoint> foundPoints = new List<SpawnPoint>();
             for(int i = 0; i < SpawnPoints.Length; i++)
             {
@@ -479,20 +568,19 @@ public class EnemySpawner : MonoBehaviour
                     continue;
                 }
                 if (string.IsNullOrEmpty(sp.spawnType)) {
-                    Debug.Log($"[EnemySpawner] SpawnPoint '{sp.gameObject.name}' (index {i}, assigned in Inspector) has a null or empty 'spawnType' string field. Current value: '{sp.spawnType}'");
+                    // Debug.Log($"[EnemySpawner] SpawnPoint '{sp.gameObject.name}' (index {i}, assigned in Inspector) has a null or empty 'spawnType' string field. Current value: '{sp.spawnType}'");
                     continue;
                 }
                 // Log the actual spawnType value from the SpawnPoint component
-                Debug.Log($"[EnemySpawner] Checking SpawnPoint '{sp.gameObject.name}' (index {i}, assigned in Inspector). Its 'spawnType' field is: '{sp.spawnType}'. Comparing with '{specificLocationName}'.");
+                // Debug.Log($"[EnemySpawner] Checking SpawnPoint '{sp.gameObject.name}' (index {i}, assigned in Inspector). Its 'spawnType' field is: '{sp.spawnType}'. Comparing with '{specificLocationName}'.");
                 if (sp.spawnType.Equals(specificLocationName, StringComparison.OrdinalIgnoreCase))
                 {
                     foundPoints.Add(sp);
-                    Debug.Log($"[EnemySpawner] --- Match FOUND: '{sp.gameObject.name}' with spawnType '{sp.spawnType}' for location '{specificLocationName}'");
+                    // Debug.Log($"[EnemySpawner] --- Match FOUND: '{sp.gameObject.name}' with spawnType '{sp.spawnType}' for location '{specificLocationName}'");
                 }
             }
 
             if (foundPoints.Count > 0)
-// ...existing code...
             {
                 return foundPoints;
             }
@@ -532,13 +620,18 @@ public class EnemySpawner : MonoBehaviour
         {
             // Create Hittable here
             enemyController.hp = new Hittable(hp, Hittable.Team.MONSTERS, newEnemyGO);
-            enemyController.speed = speed;
+            
+            // CRITICAL FIX: Subscribe to OnDeath event!
+            enemyController.hp.OnDeath += enemyController.Die;
+              enemyController.speed = speed;
             enemyController.damage = damage; // Assign calculated damage
-            // EnemyController's Start method will handle target assignment and health UI if needed
+            
+            Debug.Log($"[EnemySpawner] Spawned {data.name} with {hp} HP, {damage} DMG, {speed} SPD at {position}. Current enemy count: {GameManager.Instance.enemy_count}");
         } else { Debug.LogError($"Enemy Prefab is missing EnemyController component for {data.name}!"); }
 
         // Add to GameManager tracking
         GameManager.Instance.AddEnemy(newEnemyGO);
+        // Debug.Log($"[EnemySpawner] Added enemy to GameManager. New enemy count: {GameManager.Instance.enemy_count}");
     } // End of SpawnEnemy
 
     void ShowWaveEndScreen()
@@ -589,5 +682,18 @@ public class EnemySpawner : MonoBehaviour
             if (button != null) Destroy(button);
         }
         levelButtons.Clear();
+    }
+
+    // Public methods for reward managers to call when rewards are completed
+    public void OnSpellRewardCompleted()
+    {
+        // Debug.Log("[EnemySpawner] Spell reward completed.");
+        spellRewardCompleted = true;
+    }
+
+    public void OnRelicRewardCompleted()
+    {
+        // Debug.Log("[EnemySpawner] Relic reward completed.");
+        relicRewardCompleted = true;
     }
 }

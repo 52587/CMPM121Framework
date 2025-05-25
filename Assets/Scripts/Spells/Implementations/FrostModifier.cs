@@ -12,69 +12,110 @@ public class FrostModifier : SpellDecorator
         if (!float.TryParse(spellData?["slow_factor"]?.Value<string>() ?? "0.3", out slowFactor))
         {
             slowFactor = 0.3f;
-            Debug.LogWarning($"[FrostModifier] Could not parse 'slow_factor' for {wrappedSpell.GetName()}. Defaulting to {slowFactor}. JSON value: {spellData?["slow_factor"]?.Value<string>()}");
+            // Debug.LogWarning($"[FrostModifier] Could not parse 'slow_factor' for {wrappedSpell.GetName()}. Defaulting to {slowFactor}. JSON value: {spellData?["slow_factor"]?.Value<string>()}");
         }
         if (!float.TryParse(spellData?["slow_duration"]?.Value<string>() ?? "3.0", out slowDuration))
         {
             slowDuration = 3.0f;
-            Debug.LogWarning($"[FrostModifier] Could not parse 'slow_duration' for {wrappedSpell.GetName()}. Defaulting to {slowDuration}. JSON value: {spellData?["slow_duration"]?.Value<string>()}");
+            // Debug.LogWarning($"[FrostModifier] Could not parse 'slow_duration' for {wrappedSpell.GetName()}. Defaulting to {slowDuration}. JSON value: {spellData?["slow_duration"]?.Value<string>()}");
         }
         // Ensure slowFactor is between 0 and 1 (0% to 100% slow)
         slowFactor = Mathf.Clamp(slowFactor, 0f, 1f);
     }
 
-    protected override void OnHit(Hittable other, Vector3 impact)
+    public override void SetAttributes(JObject attributes)
     {
-        // Apply the wrapped spell's original OnHit effects first.
-        base.OnHit(other, impact); // This will call wrappedSpell.OnHitPublic
+        base.SetAttributes(attributes); // Important to call base to set up wrappedSpell attributes
 
-        // Then, apply the slow effect if it's an enemy
-        if (other != null && other.team != this.team && other.owner != null)
+        // Parse FrostModifier specific attributes
+        string slowFactorStr = attributes?["slow_factor"]?.Value<string>();
+        if (!string.IsNullOrEmpty(slowFactorStr) && float.TryParse(slowFactorStr, out float parsedFactor))
         {
-            EnemyController enemyController = other.owner.GetComponent<EnemyController>();
-            if (enemyController != null && !enemyController.dead) // Check if enemy is not already dead
+            slowFactor = parsedFactor;
+        }
+        else
+        {
+            // Debug.LogWarning($"[FrostModifier] Could not parse 'slow_factor' for {wrappedSpell.GetName()}. Defaulting to {slowFactor}. JSON value: {attributes?["slow_factor"]?.Value<string>()}");
+            // slowFactor remains its default value (e.g., 0.5f)
+        }
+
+        string slowDurationStr = attributes?["slow_duration"]?.Value<string>();
+        if (!string.IsNullOrEmpty(slowDurationStr) && float.TryParse(slowDurationStr, out float parsedDuration))
+        {
+            slowDuration = parsedDuration;
+        }
+        else
+        {
+            // Debug.LogWarning($"[FrostModifier] Could not parse 'slow_duration' for {wrappedSpell.GetName()}. Defaulting to {slowDuration}. JSON value: {attributes?["slow_duration"]?.Value<string>()}");
+            // slowDuration remains its default value (e.g., 2f)
+        }
+    }
+
+    protected override void OnHit(Hittable other, Vector3 impactPosition)
+    {
+        // Call the base OnHit to apply normal damage
+        base.OnHit(other, impactPosition);
+
+        // Apply frost slow effect if the target is an enemy
+        if (other.team != this.team)
+        {
+            // Try to get EnemyController from the hit target
+            if (other.owner != null)
             {
-                if (owner != null && owner.CoroutineRunner != null)
+                EnemyController enemy = other.owner.GetComponent<EnemyController>();
+                if (enemy != null && this.owner != null && this.owner.CoroutineRunner != null)
                 {
-                    owner.CoroutineRunner.StartCoroutine(ApplySlowEffectCoroutine(enemyController, slowFactor, slowDuration));
-                }
-                else
-                {
-                    Debug.LogError("[FrostModifier] SpellCaster or CoroutineRunner is null. Cannot apply slow effect.", this.owner?.CoroutineRunner);
+                    // Apply slow effect using a coroutine
+                    this.owner.CoroutineRunner.StartCoroutine(ApplySlowEffect(enemy));
                 }
             }
         }
     }
 
-    private IEnumerator ApplySlowEffectCoroutine(EnemyController enemyController, float factor, float duration)
+    private System.Collections.IEnumerator ApplySlowEffect(EnemyController enemy)
     {
-        if (enemyController == null || enemyController.dead) yield break;
+        if (enemy == null) yield break;
 
-        // IMPORTANT: This is a simplified slow effect. It does not correctly handle multiple applications
-        // or stacking with other speed modifiers. A proper status effect system on EnemyController
-        // would be needed for robust behavior (e.g., storing base speed and applying a list of modifiers).
-        
-        int originalSpeed = enemyController.speed; 
-        // Assuming enemyController.speed is an int. If it's float, RoundToInt might not be needed or originalSpeed could be float.
-        int slowedSpeed = Mathf.RoundToInt(originalSpeed * (1f - factor)); 
-        enemyController.speed = Mathf.Max(0, slowedSpeed); // Ensure speed is not negative.
+        // Store original speed
+        int originalSpeed = enemy.speed;
 
-        float timer = 0;
-        while(timer < duration)
+        // Apply slow effect
+        enemy.speed = Mathf.RoundToInt(originalSpeed * (1f - slowFactor));
+
+        // Wait for the duration
+        yield return new UnityEngine.WaitForSeconds(slowDuration);
+
+        // Restore original speed if enemy still exists
+        if (enemy != null && !enemy.dead)
         {
-            if(enemyController == null || enemyController.dead) yield break; // Stop if enemy died or was destroyed during slow
-            timer += Time.deltaTime;
-            yield return null; // Wait for next frame
-        }
-
-        if (enemyController != null && !enemyController.dead)
-        {
-            // Restore speed: only if current speed is the one we set.
-            // This is still not perfect for multiple slows but better than blindly resetting.
-            if (enemyController.speed == slowedSpeed) 
-            {
-                enemyController.speed = originalSpeed;
-            }
+            enemy.speed = originalSpeed;
         }
     }
+
+    // Override Cast to ensure the modifier's context (like team) is correctly used if needed,
+    // and to correctly pass through to the wrapped spell's Cast logic.
+    public override IEnumerator Cast(Vector3 where, Vector3 target, Hittable.Team team)
+    {
+        // Set the team for this modifier instance, which might be used by OnHit logic
+        this.team = team;
+        this.last_cast = Time.time; // Update last_cast time for the modifier itself
+
+        // Delegate to the wrapped spell's Cast method.
+        // This ensures that if the wrapped spell has special casting logic (like ArcaneSpraySpell),
+        // that logic is executed. The OnHit method of this FrostModifier will be called
+        // when the projectile (created by the wrapped spell's Cast) hits something.
+        yield return owner.StartCoroutineFromOwner(wrappedSpell.Cast(where, target, team));
+    }
+
+    // Other overrides like GetName, GetDescription, GetManaCost, GetCooldown, etc.,
+    // are typically handled by SpellDecorator to append to or modify the wrapped spell's values.
+    // If FrostModifier needs to specifically change these (e.g., increase mana cost),
+    // those methods should be overridden here.
+    // For example, if FrostModifier adds mana cost:
+    /*
+    public override int GetManaCost()
+    {
+        return wrappedSpell.GetManaCost() + 10; // Example: adds 10 mana cost
+    }
+    */
 }

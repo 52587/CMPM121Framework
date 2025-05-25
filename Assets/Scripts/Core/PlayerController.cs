@@ -18,50 +18,83 @@ public class PlayerController : MonoBehaviour
 
     public Unit unit;
     public EnemySpawner enemySpawner;
+    
+    // SpellBuilder for creating spells
+    private SpellBuilder spellBuilder;
 
     // Store the list of current spells
     public List<Spell> spells = new List<Spell>();
     public int maxSpells = 4;
-    private int currentSpellIndex = 0;
+    private int currentSpellIndex = 0;    private bool wasMovingLastFrame = false;
+    private const float MOVEMENT_THRESHOLD = 0.01f;
 
+    // Damage cooldown system
+    private float lastDamageTime = 0f;
+    private float damageCooldown = 1.0f; // 1 second cooldown between damage
+
+    void Awake()
+    {
+        unit = GetComponent<Unit>();
+        if (unit == null)
+        {
+            // Debug.LogError("PlayerController requires Unit component!", gameObject);
+        }
+        // Removed: spellcaster = GetComponent<SpellCaster>(); 
+        // SpellCaster is not a MonoBehaviour, it will be created in InitializeSpells() and StartLevel()
+    }
 
     void Start()
     {
-        unit = GetComponent<Unit>();
-        if (unit == null) Debug.LogError("PlayerController requires Unit component!", gameObject);
-
         GameManager.Instance.player = gameObject;
+
+        // Initialize SpellBuilder
+        spellBuilder = new SpellBuilder();
 
         if (enemySpawner == null)
         {
             enemySpawner = FindAnyObjectByType<EnemySpawner>();
-            if (enemySpawner == null) Debug.LogError("PlayerController could not find EnemySpawner in the scene!", gameObject);
+            if (enemySpawner == null)
+            {
+                // Debug.LogError("PlayerController could not find EnemySpawner in the scene!", gameObject);
+            }
         }
 
-        if (healthui == null) Debug.LogError("PlayerController: healthui not assigned!", gameObject);
-        if (manaui == null) Debug.LogError("PlayerController: manaui not assigned!", gameObject);
-        // spellui is handled by SpellUIContainer now
-        if (spellUIContainer == null) Debug.LogError("PlayerController: spellUIContainer not assigned!", gameObject);
+        if (healthui == null)
+        {
+            // Debug.LogError("PlayerController: healthui not assigned!", gameObject);
+        }
+        if (manaui == null)
+        {
+            // Debug.LogError("PlayerController: manaui not assigned!", gameObject);
+        }
+        if (spellUIContainer == null)
+        {
+            // Debug.LogError("PlayerController: spellUIContainer not assigned!", gameObject);
+        }
 
-        // Initialize with a basic spell
-        InitializeSpells();
+        // Initialize SpellBuilder if GameManager exists
+        if (GameManager.Instance != null)
+        {
+            // Initialize with a basic spell
+            InitializeSpells();
+        }
     }
 
     public void InitializeSpells()
     {
         // Create a default SpellCaster for initialization purposes
         // This SpellCaster might be temporary or updated when stats are fully calculated
-        var initialSpellCaster = new SpellCaster(100, 5, Hittable.Team.PLAYER, 0, this); // Pass 'this' as MonoBehaviour
+        spellcaster = new SpellCaster(100, 5, Hittable.Team.PLAYER, 0, this);
 
         // Create a random initial spell
-        Spell initialSpell = new SpellBuilder().Build(initialSpellCaster);
+        Spell initialSpell = spellBuilder.BuildSpecificSpell("arcane_bolt", spellcaster);
         if (initialSpell != null)
         {
             AddSpell(initialSpell);
         }
         else
         {
-            Debug.LogError("Failed to create initial arcane_bolt spell.");
+            // Debug.LogError("Failed to create initial arcane_bolt spell.");
         }
     }
 
@@ -82,17 +115,57 @@ public class PlayerController : MonoBehaviour
         hp = new Hittable(1, Hittable.Team.PLAYER, gameObject); // Initial dummy HP
         hp.OnDeath += Die;
 
-        if (healthui != null) healthui.SetHealth(hp); else Debug.LogError("HealthUI not assigned!");
-        if (manaui != null) manaui.SetSpellCaster(spellcaster); else Debug.LogError("ManaUI not assigned!");
-        
-        UpdatePlayerSpellsUI(); // Update UI after spells are set/changed
-        Debug.Log("Player Level Started. Stats will be set by UpdateStatsForWave.");
+        if (healthui != null)
+        {
+            healthui.SetHealth(hp);
+        }
+        else
+        {
+            // Debug.LogError("PlayerController: healthui not assigned!", gameObject);
+        }
+
+        if (manaui != null)
+        {
+            manaui.SetSpellCaster(spellcaster);
+        }
+        else
+        {
+            // Debug.LogError("PlayerController: manaui not assigned!", gameObject);
+        }
+
+        // Debug.Log("Player Level Started. Stats will be set by UpdateStatsForWave.");
+    }
+
+    public void UpdateHealthUI()
+    {
+        if (healthui != null)
+        {
+            healthui.SetHealth(hp);
+        }
+        else
+        {
+            // Debug.LogError("PlayerController: healthui not assigned!", gameObject);
+        }
+    }
+
+    public void UpdateManaUI()
+    {
+        if (manaui != null)
+        {
+            // ManaBar doesn't have SetMana method, it updates automatically via its Update method
+            // Just ensure the SpellCaster is assigned
+            manaui.SetSpellCaster(spellcaster);
+        }
+        else
+        {
+            // Debug.LogError("PlayerController: manaui not assigned!", gameObject);
+        }
     }
 
     public void UpdateStatsForWave(int wave)
     {
         float currentWave = (float)wave;
-        float currentPower = (float)this.spellPower; 
+        float currentPower = (float)this.spellPower;
 
         var rpnVariables = new Dictionary<string, float>
         {
@@ -129,7 +202,7 @@ public class PlayerController : MonoBehaviour
 
         // Player Spell Power: "wave 10 *"
         // For "wave 10 *", power variable is not used by the expression itself.
-        this.spellPower = RPNEvaluator.EvaluateInt("wave 10 *", rpnVariables); 
+        this.spellPower = RPNEvaluator.EvaluateInt("wave 10 *", rpnVariables);
         if(spellcaster != null) spellcaster.spellPower = this.spellPower;
 
         // Player Speed: "5"
@@ -139,14 +212,14 @@ public class PlayerController : MonoBehaviour
             // Unit speed is not directly set like this, movement vector is scaled by speed.
             // The existing OnMove method uses this.speed, so just updating it is enough.
         }
-        
+
         // Update spellcaster for all current spells
         foreach(Spell s in spells)
         {
             if (s != null) s.owner = this.spellcaster; // Ensure spells have the updated spellcaster
         }
 
-        Debug.Log($"Player stats updated for wave {wave}: HP={hp.max_hp}, Mana={spellcaster.max_mana}, Regen={spellcaster.mana_reg}, Power={this.spellPower}, Speed={this.speed}");
+        // Debug.Log($"Player stats updated for wave {wave}: HP={hp.max_hp}, Mana={spellcaster.max_mana}, Regen={spellcaster.mana_reg}, Power={this.spellPower}, Speed={this.speed}");
         UpdatePlayerSpellsUI();
     }
 
@@ -156,44 +229,158 @@ public class PlayerController : MonoBehaviour
         {
             if (unit != null) unit.movement = Vector2.zero;
         }
-        // Handle spell switching input if you add it (e.g., 1-4 keys)
+
+        // Player movement detection for StandStillTrigger and other movement-based relics
+        Vector2 currentMovementInput = Vector2.zero;
+        // This assumes you have a way to get current movement input, e.g., from an InputValue in OnMove
+        // If OnMove directly applies movement, check velocity
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+        {
+            currentMovementInput = rb.linearVelocity;
+        }
+
+        bool isCurrentlyMoving = currentMovementInput.sqrMagnitude > MOVEMENT_THRESHOLD;
+
+        if (isCurrentlyMoving && !wasMovingLastFrame)
+        {
+            // Player started moving
+            EventBus.Instance.NotifyPlayerMoved(this);
+            RelicManager.Instance?.NotifyConditionMet("move", this);
+        }
+        else if (!isCurrentlyMoving && wasMovingLastFrame)
+        {
+            // Player stopped moving
+            EventBus.Instance.NotifyPlayerStopped(this);
+        }
+        wasMovingLastFrame = isCurrentlyMoving;
+    }    void OnMove(InputValue value)
+    {
+        Vector2 movementInput = value.Get<Vector2>();
+        
+        // Only use Unit component for movement to avoid conflicts
+        if (unit != null)
+        {
+            unit.movement = movementInput * speed;
+        }
     }
 
-    void OnAttack(InputValue value)
+    // Add collision detection methods for damage handling
+    private void OnTriggerEnter2D(Collider2D other)
     {
-        Debug.Log("[PlayerController.OnAttack] Called.");
-        if (GameManager.Instance.state != GameManager.GameState.INWAVE && GameManager.Instance.state != GameManager.GameState.WAVEEND)
-        {
-            Debug.Log("[PlayerController.OnAttack] Exiting: Game not in INWAVE or WAVEEND state.");
-            return;
-        }
-        if (spellcaster == null || spells.Count == 0 || spells[currentSpellIndex] == null)
-        {
-            Debug.LogWarning("[PlayerController.OnAttack] Exiting: Spellcaster, spells list, or current spell is null/empty.");
-            if(spellcaster == null) Debug.LogWarning("Spellcaster is null");
-            if(spells.Count == 0) Debug.LogWarning("Spells list is empty");
-            if(spells.Count > 0 && spells[currentSpellIndex] == null) Debug.LogWarning($"Current spell at index {currentSpellIndex} is null");
-            return;
-        }
+        HandleCollision(other);
+    }
 
-        Vector2 mouseScreen = Mouse.current.position.value;
-        Vector3 mouseWorld = Camera.main.ScreenToWorldPoint(mouseScreen);
-        mouseWorld.z = 0;
-        Debug.Log($"[PlayerController.OnAttack] Target world coordinates: {mouseWorld}");
-
-        Spell spellToCast = spells[currentSpellIndex];
-        Debug.Log($"[PlayerController.OnAttack] Current spell to cast: {spellToCast.GetName()}");
-        spellcaster.SetCurrentSpell(spellToCast); 
-        Debug.Log("[PlayerController.OnAttack] Attempting to start SpellCaster.Cast coroutine.");
-        StartCoroutine(spellcaster.Cast(transform.position, mouseWorld));
-        Debug.Log("[PlayerController.OnAttack] SpellCaster.Cast coroutine started.");
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        HandleCollision(collision.collider);
+    }    private void HandleCollision(Collider2D other)
+    {
+        // Check if colliding with enemy
+        if (other.CompareTag("Enemy") && Time.time > lastDamageTime + damageCooldown)
+        {
+            Debug.Log($"[PlayerController.HandleCollision] Collision with enemy detected: {other.name}");
+            EnemyController enemy = other.GetComponent<EnemyController>();
+            if (enemy != null && hp != null)
+            {
+                // Use proper damage system and enemy's actual damage value
+                Damage damageToApply = new Damage(enemy.damage, Damage.Type.PHYSICAL);
+                Debug.Log($"[PlayerController.HandleCollision] About to apply {enemy.damage} damage to player. Current HP: {hp.hp}/{hp.max_hp}");
+                hp.Damage(damageToApply);
+                lastDamageTime = Time.time;
+                Debug.Log($"[PlayerController.HandleCollision] Player took {enemy.damage} damage from {enemy.gameObject.name}. New HP: {hp.hp}/{hp.max_hp}");
+            }
+            else
+            {
+                Debug.LogWarning($"[PlayerController.HandleCollision] Enemy collision but missing components. Enemy: {enemy != null}, HP: {hp != null}");
+            }
+        }
+        
+        // Check if colliding with enemy projectiles
+        if (other.CompareTag("EnemyProjectile") && Time.time > lastDamageTime + damageCooldown)
+        {
+            Debug.Log($"[PlayerController.HandleCollision] Collision with enemy projectile detected: {other.name}");
+            if (hp != null)
+            {
+                int projectileDamage = 5; // Default damage, adjust as needed
+                Damage damageToApply = new Damage(projectileDamage, Damage.Type.PHYSICAL);
+                Debug.Log($"[PlayerController.HandleCollision] About to apply {projectileDamage} projectile damage to player. Current HP: {hp.hp}/{hp.max_hp}");
+                hp.Damage(damageToApply);
+                lastDamageTime = Time.time;
+                Debug.Log($"[PlayerController.HandleCollision] Player took {projectileDamage} damage from enemy projectile. New HP: {hp.hp}/{hp.max_hp}");
+                
+                // Destroy the projectile
+                Destroy(other.gameObject);
+            }
+            else
+            {
+                Debug.LogWarning($"[PlayerController.HandleCollision] Projectile collision but player HP is null");
+            }
+        }
     }
     
+    // Simple OnAttack method for Input System's Send Messages behavior mode
+    public void OnAttack(InputValue inputValue)
+    {
+        // Handle the attack logic directly when using Send Messages behavior
+        if (inputValue.isPressed)
+        {
+            HandleAttackInput();
+        }
+    }
+
+    // Parameterless version for compatibility
+    public void OnAttack()
+    {
+        // Handle the attack logic directly without creating an unused context
+        HandleAttackInput();
+    }    private void HandleAttackInput()
+    {
+        if (spells == null || spells.Count == 0)
+        {
+            return;
+        }
+
+        if (currentSpellIndex < 0 || currentSpellIndex >= spells.Count)
+        {
+            return;
+        }
+
+        if (Mouse.current == null || Camera.main == null)
+        {
+            return;
+        }
+
+        Vector2 mouseScreenPos = Mouse.current.position.ReadValue();
+        Vector3 mouseWorld = Camera.main.ScreenToWorldPoint(new Vector3(mouseScreenPos.x, mouseScreenPos.y, Camera.main.nearClipPlane));
+        mouseWorld.z = 0;
+
+        Spell spellToCast = spells[currentSpellIndex];
+        if (spellToCast == null)
+        {
+            return;
+        }
+
+        // Debug logging to verify spell power values before casting
+        Debug.Log($"[PlayerController.HandleAttackInput] About to cast spell. PlayerController.spellPower: {this.spellPower}, SpellCaster.spellPower: {(spellcaster != null ? spellcaster.spellPower : "NULL")}");
+
+        // Use the SpellCaster to cast the spell
+        if (spellcaster != null && spellToCast != null)
+        {
+            spellcaster.SetCurrentSpell(spellToCast);
+            StartCoroutine(spellcaster.Cast(transform.position, mouseWorld));
+        }
+
+        // Notify that a spell was cast for relics that care about "cast-spell" condition
+        Debug.Log("[PlayerController.OnAttack] Notifying RelicManager about spell cast");
+        RelicManager.Instance?.NotifyConditionMet("cast-spell", spellcaster, spells[currentSpellIndex]);
+    }
+
     // Method to add a spell, replacing if necessary
     public void AddSpell(Spell newSpell, int slot = -1)
     {
         if (newSpell == null) return;
-        newSpell.owner = this.spellcaster; // Ensure the spell knows its owner
+        newSpell.owner = this.spellcaster; // Reverted: Original line
 
         if (spells.Count < maxSpells)
         {
@@ -219,7 +406,7 @@ public class PlayerController : MonoBehaviour
         // Select the new spell or the first spell if it was an addition
         if (spells.Count == 1) currentSpellIndex = 0;
         if (slot != -1 && slot < spells.Count) currentSpellIndex = slot;
-        
+
         SelectSpell(currentSpellIndex); // Ensure the UI highlights the correct spell
     }
 
@@ -246,7 +433,7 @@ public class PlayerController : MonoBehaviour
     public void SelectSpell(int index)
     {
         if (spells.Count == 0) {
-            currentSpellIndex = 0; 
+            currentSpellIndex = 0;
             if (spellcaster != null) spellcaster.SetCurrentSpell(null);
             UpdatePlayerSpellsUI(); // Ensure UI reflects no spells
             return;
@@ -293,7 +480,7 @@ public class PlayerController : MonoBehaviour
                     spellUISlotGO.SetActive(true);
                     uiSlot.SetSpell(spells[i]);
                     uiSlot.highlight.SetActive(i == currentSpellIndex);
-                    
+
                     if (uiSlot.dropbutton != null)
                     {
                         uiSlot.dropbutton.SetActive(true);
@@ -326,7 +513,7 @@ public class PlayerController : MonoBehaviour
     // New method to handle dropping a spell
     public void HandleDropSpellClicked(int spellIndex)
     {
-        Debug.Log($"[PlayerController] Drop spell clicked for UI slot index: {spellIndex}");
+        // Debug.Log($"[PlayerController] Drop spell clicked for UI slot index: {spellIndex}");
 
         if (spellIndex >= 0 && spellIndex < spells.Count)
         {
@@ -350,45 +537,50 @@ public class PlayerController : MonoBehaviour
                 // Ensure currentSpellIndex is valid for the new list size.
                 currentSpellIndex = Mathf.Clamp(currentSpellIndex, 0, spells.Count - 1);
             }
-            
+
             // After adjusting currentSpellIndex and modifying the spells list,
             // call SelectSpell to update the spellcaster and UI highlights.
             // SelectSpell itself calls UpdatePlayerSpellsUI.
-            SelectSpell(currentSpellIndex); 
+            SelectSpell(currentSpellIndex);
         }
         else
         {
-            Debug.LogWarning($"[PlayerController] Attempted to drop spell at invalid index {spellIndex} or from an empty slot. Spells count: {spells.Count}");
+            // Debug.LogWarning($"[PlayerController] Attempted to drop spell at invalid index {spellIndex} or from an empty slot. Spells count: {spells.Count}");
         }
     }
 
-    void OnMove(InputValue value)
+    // Helper method for RPN evaluation if not already present
+    public Dictionary<string, float> GetRPNVariables()
     {
-        if (GameManager.Instance.state != GameManager.GameState.INWAVE && GameManager.Instance.state != GameManager.GameState.WAVEEND)
-        {
-             if (unit != null) unit.movement = Vector2.zero;
-             return;
-        }
-        if (unit == null) return;
+        // Ensure GameManager.Instance and spellcaster are not null
+        int currentWave = GameManager.Instance != null ? GameManager.Instance.currentWave : 1;
+        float currentSpellPower = spellcaster != null ? spellcaster.spellPower : 0;
+        // Add other variables like player health, mana, etc., if your RPN expressions need them
 
-        unit.movement = value.Get<Vector2>() * speed;
+        return new Dictionary<string, float>
+        {
+            { "wave", currentWave },
+            { "power", currentSpellPower }
+            // { "health", hp != null ? hp.hp : 0 },
+            // { "max_health", hp != null ? hp.max_hp : 0 },
+            // { "mana", spellcaster != null ? spellcaster.mana : 0 },
+            // { "max_mana", spellcaster != null ? spellcaster.max_mana : 0 }
+        };
     }
 
     void Die()
     {
-        if (GameManager.Instance.state == GameManager.GameState.GAMEOVER) return;
-
-        Debug.Log("Player Died - Game Over");
-        if (unit != null) unit.movement = Vector2.zero;
-
-        if (enemySpawner != null)
+        // Debug.Log("Player Died!");
+        // Potentially notify relics if needed, though game over might supersede relic logic
+        if (GameManager.Instance != null)
         {
-            enemySpawner.ShowGameOverScreen(); // This will set GameManager.Instance.state
+            GameManager.Instance.state = GameManager.GameState.GAMEOVER;
+            // Debug.Log("GameManager state set to GAMEOVER.");
+            // If there's a specific UI or cleanup for game over, that could be called here too.
         }
         else
         {
-            Debug.LogError("EnemySpawner reference not set on PlayerController. Cannot show Game Over screen.");
-            GameManager.Instance.state = GameManager.GameState.GAMEOVER; // Fallback
+            // Debug.LogError("GameManager.Instance is null, cannot set game state to GAMEOVER.");
         }
     }
 }

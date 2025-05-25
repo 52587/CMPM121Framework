@@ -13,13 +13,41 @@ public class HasteModifier : SpellDecorator
         if (!float.TryParse(spellData?["cooldown_multiplier"]?.Value<string>() ?? "1", out cooldownMultiplier))
         {
             cooldownMultiplier = 1f; // Default to no change if parsing fails
-            Debug.LogWarning($"[HasteModifier] Could not parse 'cooldown_multiplier'. Defaulting to 1. Spell: {wrappedSpell.GetName()}");
+            // Debug.LogWarning($"[HasteModifier] Could not parse 'cooldown_multiplier'. Defaulting to 1. Spell: {wrappedSpell.GetName()}");
         }
 
         if (!float.TryParse(spellData?["mana_multiplier"]?.Value<string>() ?? "1", out manaMultiplier))
         {
             manaMultiplier = 1f; // Default to no change if parsing fails
-            Debug.LogWarning($"[HasteModifier] Could not parse 'mana_multiplier'. Defaulting to 1. Spell: {wrappedSpell.GetName()}");
+            // Debug.LogWarning($"[HasteModifier] Could not parse 'mana_multiplier'. Defaulting to 1. Spell: {wrappedSpell.GetName()}");
+        }
+    }
+
+    public override void SetAttributes(JObject attributes)
+    {
+        base.SetAttributes(attributes); // Call base to set common attributes
+
+        // Parse HasteModifier specific attributes
+        string cooldownMultExpr = attributes?["cooldown_multiplier"]?.Value<string>();
+        if (!string.IsNullOrEmpty(cooldownMultExpr))
+        {
+            cooldownMultiplier = RPNEvaluator.EvaluateFloat(cooldownMultExpr, GetRPNVariables());
+        }
+        else
+        {
+            // Debug.LogWarning($"[HasteModifier] Could not parse 'cooldown_multiplier'. Defaulting to 1. Spell: {wrappedSpell.GetName()}");
+            cooldownMultiplier = 1f; // Default if not specified or parsing fails
+        }
+
+        string manaMultExpr = attributes?["mana_multiplier"]?.Value<string>();
+        if (!string.IsNullOrEmpty(manaMultExpr))
+        {
+            manaMultiplier = RPNEvaluator.EvaluateFloat(manaMultExpr, GetRPNVariables());
+        }
+        else
+        {
+            // Debug.LogWarning($"[HasteModifier] Could not parse 'mana_multiplier'. Defaulting to 1. Spell: {wrappedSpell.GetName()}");
+            manaMultiplier = 1f; // Default if not specified or parsing fails
         }
     }
 

@@ -1,4 +1,3 @@
-
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 using System.Collections; // Required for IEnumerator
@@ -26,9 +25,9 @@ public class ArcaneBlastSpell : Spell
 
     private void SpawnSecondaryProjectiles(Vector3 spawnPosition)
     {
-        if (GameManager.Instance == null || GameManager.Instance.projectileManager == null)
+        if (GameManager.Instance == null)
         {
-            Debug.LogError("ArcaneBlastSpell: ProjectileManager not found for secondary projectiles!");
+            Debug.LogError("ArcaneBlastSpell: GameManager not found for secondary projectiles!");
             return;
         }
 
@@ -70,11 +69,11 @@ public class ArcaneBlastSpell : Spell
             
             if (secondaryLifetimeNullable.HasValue)
             {
-                GameManager.Instance.projectileManager.CreateProjectile(secondarySprite, secondaryTrajectory, spawnPosition, direction, secondarySpeed, secondaryOnHit, secondaryLifetimeNullable.Value);
+                GameManager.Instance.CreateProjectile(secondarySprite, secondaryTrajectory, spawnPosition, direction, secondarySpeed, secondaryOnHit, secondaryLifetimeNullable.Value);
             }
             else
             {
-                GameManager.Instance.projectileManager.CreateProjectile(secondarySprite, secondaryTrajectory, spawnPosition, direction, secondarySpeed, secondaryOnHit);
+                GameManager.Instance.CreateProjectile(secondarySprite, secondaryTrajectory, spawnPosition, direction, secondarySpeed, secondaryOnHit);
             }
         }
     }

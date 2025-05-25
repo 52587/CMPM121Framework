@@ -1,5 +1,6 @@
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using System.Collections;
 
 public class HomingModifier : SpellDecorator
 {
@@ -33,13 +34,13 @@ public class HomingModifier : SpellDecorator
 
         // Crucially, set the trajectory
         forcedProjectileTrajectory = attributes?["projectile_trajectory"]?.Value<string>();
-        Debug.Log($"[HomingModifier.SetAttributes] Initial forcedProjectileTrajectory from JSON: {forcedProjectileTrajectory}");
+        // Debug.Log($"[HomingModifier.SetAttributes] Initial forcedProjectileTrajectory from JSON: {forcedProjectileTrajectory}");
         if (string.IsNullOrEmpty(forcedProjectileTrajectory))
         {
-            Debug.LogWarning("[HomingModifier.SetAttributes] 'projectile_trajectory' not specified in JSON for this modifier. Defaulting to \"homing\".");
+            // Debug.LogWarning("[HomingModifier.SetAttributes] 'projectile_trajectory' not specified in JSON for this modifier. Defaulting to \"homing\".");
             forcedProjectileTrajectory = "homing";
         }
-        Debug.Log($"[HomingModifier.SetAttributes] Final forcedProjectileTrajectory: {forcedProjectileTrajectory}");
+        // Debug.Log($"[HomingModifier.SetAttributes] Final forcedProjectileTrajectory: {forcedProjectileTrajectory}");
     }
 
     public override int GetDamage()
@@ -54,9 +55,20 @@ public class HomingModifier : SpellDecorator
 
     public override string GetProjectileTrajectory()
     {
-        Debug.Log($"[HomingModifier.GetProjectileTrajectory] Returning trajectory: {forcedProjectileTrajectory}");
+        // Debug.Log($"[HomingModifier.GetProjectileTrajectory] Returning trajectory: {forcedProjectileTrajectory}");
         // This ensures the modifier forces the homing trajectory.
         return forcedProjectileTrajectory;
+    }
+
+    public override IEnumerator Cast(Vector3 where, Vector3 target, Hittable.Team team)
+    {
+        // Set the team and last_cast for this modifier instance
+        this.team = team;
+        this.last_cast = Time.time;
+
+        // Delegate to the wrapped spell's Cast method to preserve its behavior
+        // (e.g., ArcaneSpraySpell's multi-projectile casting)
+        yield return owner.StartCoroutineFromOwner(wrappedSpell.Cast(where, target, team));
     }
 
     // Other methods like GetName(), GetDescription(), GetIcon() are inherited from SpellDecorator.

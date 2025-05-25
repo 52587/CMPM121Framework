@@ -15,6 +15,7 @@ public class SpawnPoint : MonoBehaviour
     public string spawnType = "default"; // e.g., "red", "bone", "green", or leave as "default"
 
     // Optional: Add gizmos for easier visualization in the editor
+#if UNITY_EDITOR
     void OnDrawGizmos()
     {
         Gizmos.color = GetGizmoColor();
@@ -40,6 +41,7 @@ public class SpawnPoint : MonoBehaviour
             default: return Color.gray;
         }
     }
+#endif
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()

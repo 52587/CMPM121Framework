@@ -1,57 +1,166 @@
 [
     {
-        "name": "Green Gem",
+        "name": "Blood Pact",
         "sprite": 0,
         "trigger": {
-            "description": "Whenever you take damage",
-            "type": "take-damage"
+            "description": "Whenever you take damage...",
+            "type": "take-damage",
+            "amount": null
         },
         "effect": {
-            "description": "you gain 5 mana",
+            "description": "...you gain 5 mana.",
             "type": "gain-mana",
-            "amount": "5"
+            "amount": "5",
+            "until": null
         }
     },
     {
-        "name": "Jade Elephant",
+        "name": "Retaliation",
         "sprite": 1,
         "trigger": {
-            "description": "When you don't move for 3 seconds",
+            "description": "When you take damage...",
+            "type": "take-damage",
+            "amount": null
+        },
+        "effect": {
+            "description": "...your next spell gets 100 spellpower.",
+            "type": "gain-spellpower",
+            "amount": "100",
+            "until": "next-spell"
+        }
+    },
+    {
+        "name": "Soul Eater",
+        "sprite": 2,
+        "trigger": {
+            "description": "When you kill an enemy...",
+            "type": "on-kill",
+            "amount": null
+        },
+        "effect": {
+            "description": "...you gain 10 mana.",
+            "type": "gain-mana",
+            "amount": "10",
+            "until": null
+        }
+    },
+    {
+        "name": "Stillness",
+        "sprite": 3,
+        "trigger": {
+            "description": "Whenever you don't move for 3 seconds...",
             "type": "stand-still",
             "amount": "3"
         },
         "effect": {
-            "description": "you gain 10 spellpower (+5/wave)",
+            "description": "...you gain 10 spellpower (+5/wave). (Effect ends when you move again)",
             "type": "gain-spellpower",
-            "amount": "10 wave 5 * +",
+            "amount": "10 5 wave * +", 
             "until": "move"
         }
     },
     {
-        "name": "Golden Mask",
-        "sprite": 2,
+        "name": "Mana Siphon",
+        "sprite": 4,
         "trigger": {
-            "description": "When you take damage",
-            "type": "take-damage"
+            "description": "Whenever you deal damage to an enemy...",
+            "type": "player-deal-damage",
+            "amount": null
         },
         "effect": {
-            "description": "your next spell gains 100 additional spellpower.",
-            "type": "gain-spellpower",
-            "amount": "100",
-            "until": "cast-spell"
+            "description": "...you replenish 1 mana.",
+            "type": "gain-mana",
+            "amount": "1",
+            "until": null
         }
     },
     {
-        "name": "Cursed Scroll",
-        "sprite": 3,
+        "name": "Wave Walker's Boon",
+        "sprite": 5,
         "trigger": {
-            "description": "When you kill an enemy",
-            "type": "on-kill"
+            "description": "When a new wave starts...",
+            "type": "wave-start",
+            "amount": null 
         },
         "effect": {
-            "description": "you gain 25 mana.",
-            "type": "gain-mana",
-            "amount": "25"
+            "description": "...gain 25 additional spellpower for 15 seconds.",
+            "type": "gain-spellpower",
+            "amount": "25",
+            "until": "duration 15" 
+        }    },
+    {
+        "name": "Miss Misery's Aid",
+        "sprite": 6,
+        "trigger": {
+            "description": "When you cast a spell and miss...",
+            "type": "spell-miss",
+            "amount": null
+        },
+        "effect": {
+            "description": "...your next spell costs 5 less mana.",
+            "type": "reduce-next-spell-cost",
+            "amount": "5",
+            "until": "next-spell"
+        }
+    },
+    {
+        "name": "Lightning Boots",
+        "sprite": 7,
+        "trigger": {
+            "description": "When you take damage...",
+            "type": "take-damage",
+            "amount": null
+        },
+        "effect": {
+            "description": "...gain 50% speed boost for 3 seconds.",
+            "type": "temporary-speed-boost",
+            "amount": "1.5",
+            "until": "duration 3"
+        }
+    },
+    {
+        "name": "Adrenaline Rush",
+        "sprite": 8,
+        "trigger": {
+            "description": "When standing still for 2 seconds...",
+            "type": "stand-still",
+            "amount": "2"
+        },
+        "effect": {
+            "description": "...gain 2x damage boost until you move.",
+            "type": "temporary-damage-boost",
+            "amount": "2",
+            "until": "move"
+        }
+    },
+    {
+        "name": "Guardian's Shield",
+        "sprite": 9,
+        "trigger": {
+            "description": "When a new wave starts...",
+            "type": "wave-start",
+            "amount": null
+        },
+        "effect": {
+            "description": "...become invulnerable for 2 seconds.",
+            "type": "temporary-invulnerability",
+            "amount": "1",
+            "until": "duration 2"
+        }
+    },
+    {
+        "name": "Berserker's Rage",
+        "sprite": 10,
+        "trigger": {
+            "description": "When you kill an enemy...",
+            "type": "on-kill",
+            "amount": null
+        },
+        "effect": {
+            "description": "...gain 3x damage boost until next spell.",
+            "type": "temporary-damage-boost",
+            "amount": "3",
+            "until": "next-spell"
         }
     }
 ]

@@ -87,8 +87,8 @@
        "spawns": [
             {
                 "enemy": "zombie",
-                "count": "15",
-                "hp": "100",
+                "count": "1",
+                "hp": "10",
                 "damage": "base",
                 "speed": "0",
                 "delay": 0,
