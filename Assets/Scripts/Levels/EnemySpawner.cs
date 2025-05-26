@@ -481,41 +481,42 @@ public class EnemySpawner : MonoBehaviour
         }
     }    public void OnSpellRewardCompleted()
     {
-        spellPhaseCompleted = true;
         Debug.Log("[EnemySpawner] OnSpellRewardCompleted: Spell phase marked complete.");
-        
-        // Check if we should offer relic rewards next
-        bool offeredRelicRewards = false;
-        if (spellRewardManager != null && spellRewardManager.ShouldOfferRelicReward())
+        spellPhaseCompleted = true;
+
+        // The SpellRewardManager is now responsible for deciding whether to offer relics
+        // and then calling OnRelicRewardCompleted.
+        // So, we no longer call OfferRelicRewards directly from here.
+        // If SpellRewardManager decides not to offer relics, it will call OnRelicRewardCompleted directly.
+
+        // Check if both phases are complete to proceed
+        if (spellPhaseCompleted && relicPhaseCompleted)
         {
-            Debug.Log("[EnemySpawner] Attempting to offer relic rewards after spell completion.");
-            bool relicRewardsOfferedAfterSpell = spellRewardManager.OfferRelicRewards(); 
-            if (relicRewardsOfferedAfterSpell) 
-            {
-                offeredRelicRewards = true;
-                Debug.Log("[EnemySpawner] Relic rewards offered successfully. Waiting for OnRelicRewardCompleted.");
-            }
-            else
-            {
-                Debug.LogWarning("[EnemySpawner] ShouldOfferRelicReward was true, but OfferRelicRewards() returned false.");
-            }
+            Debug.Log("[EnemySpawner] Both spell and relic phases complete. Proceeding to next wave.");
+            GameManager.Instance.state = GameManager.GameState.WAVEEND; // Corrected gameState reference
+            NextWave(); 
         }
-          // If no relic rewards were offered, automatically start the next wave
-        if (!offeredRelicRewards)
+        else if (spellPhaseCompleted && !relicPhaseCompleted)
         {
-            Debug.Log("[EnemySpawner] No relic rewards offered after spell completion. Auto-starting next wave.");
-            Time.timeScale = 1f; 
-            NextWave();
+            // This case should ideally be handled by SpellRewardManager calling OnRelicRewardCompleted
+            // or offering relics. If SpellRewardManager skips relics, it calls OnRelicRewardCompleted.
+            Debug.Log("[EnemySpawner] Spell phase complete, waiting for relic phase completion signal from SpellRewardManager.");
         }
-    }    public void OnRelicRewardCompleted()
+    }
+
+    public void OnRelicRewardCompleted()
     {
-        relicPhaseCompleted = true; 
         Debug.Log("[EnemySpawner] OnRelicRewardCompleted: Relic phase (or entire reward sequence) marked complete.");
-        
-        Time.timeScale = 1f; 
+        relicPhaseCompleted = true;
+        // It's possible that spell rewards were skipped, and only relic rewards were offered (or skipped).
+        // Or, spell rewards were chosen, and now relic rewards are completed.
+        // In any case, by the time OnRelicRewardCompleted is called by SpellRewardManager, both phases are conceptually done for the reward sequence.
+        spellPhaseCompleted = true; 
+
+        Time.timeScale = 1f; // Resume game
         Debug.Log("[EnemySpawner] Resuming game time. Time.timeScale = 1f");
-        
-        // Automatically start the next wave instead of showing the wave end screen
+        GameManager.Instance.state = GameManager.GameState.WAVEEND; // Corrected gameState reference
+
         Debug.Log("[EnemySpawner] Auto-starting next wave after rewards completion.");
         NextWave();
     }

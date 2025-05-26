@@ -35,6 +35,7 @@ public class SpellRewardManager : MonoBehaviour, IRewardManager
     private List<Spell> offeredSpells = new List<Spell>();
     private List<RelicJsonData> offeredRelics = new List<RelicJsonData>(); // Added for relic functionality
     private EnemySpawner enemySpawner; // Added to cache EnemySpawner
+    private int wavesCompletedSinceLastRelic = 0; // Added for 3-wave relic reward
 
     void Start()
     {
@@ -207,18 +208,30 @@ public class SpellRewardManager : MonoBehaviour, IRewardManager
         }
         offeredSpells.Clear();
 
-        // After spell selection, offer relic rewards instead of immediately completing
+        // After spell selection, potentially offer relic rewards
+        wavesCompletedSinceLastRelic++;
         if (enemySpawner != null)
         {
-            enemySpawner.OnSpellRewardCompleted();
-            // Offer relic rewards after spell selection
-            OfferRelicRewards(3);
+            enemySpawner.OnSpellRewardCompleted(); // Notify spawner spell phase is done
+
+            if (ShouldOfferRelicReward() && wavesCompletedSinceLastRelic % 3 == 0)
+            {
+                Debug.Log($"[SpellRewardManager] Offering relic rewards. Waves completed since last relic: {wavesCompletedSinceLastRelic}");
+                OfferRelicRewards(3);
+                // wavesCompletedSinceLastRelic will be reset in SelectRelicReward/SkipRelicReward if offered
+            }
+            else
+            {
+                Debug.Log($"[SpellRewardManager] Not offering relic rewards this wave. Waves completed since last relic: {wavesCompletedSinceLastRelic}. Notifying relic completion directly.");
+                // If not offering relics, immediately notify EnemySpawner that relic phase is also complete
+                Time.timeScale = 1f; // Ensure game resumes if it was paused by spell reward
+                enemySpawner.OnRelicRewardCompleted();
+            }
         }
         else
         {
-            Debug.LogError("SpellRewardManager: EnemySpawner reference is null, cannot notify completion.");
-            // Resume game if no EnemySpawner reference
-            Time.timeScale = 1f;
+            Debug.LogError("SpellRewardManager: EnemySpawner reference is null, cannot notify completion or offer relics.");
+            Time.timeScale = 1f; // Resume game if no EnemySpawner reference
         }
     }
 
@@ -240,18 +253,30 @@ public class SpellRewardManager : MonoBehaviour, IRewardManager
         }
         offeredSpells.Clear();
         
-        // After skipping spell reward, offer relic rewards instead of immediately completing
+        // After skipping spell reward, potentially offer relic rewards
+        wavesCompletedSinceLastRelic++;
         if (enemySpawner != null)
         {
-            enemySpawner.OnSpellRewardCompleted();
-            // Offer relic rewards after skipping spell selection
-            OfferRelicRewards(3);
+            enemySpawner.OnSpellRewardCompleted(); // Notify spawner spell phase is done
+
+            if (ShouldOfferRelicReward() && wavesCompletedSinceLastRelic % 3 == 0)
+            {
+                Debug.Log($"[SpellRewardManager] Offering relic rewards after skip. Waves completed since last relic: {wavesCompletedSinceLastRelic}");
+                OfferRelicRewards(3);
+                // wavesCompletedSinceLastRelic will be reset in SelectRelicReward/SkipRelicReward if offered
+            }
+            else
+            {
+                Debug.Log($"[SpellRewardManager] Not offering relic rewards this wave after skip. Waves completed since last relic: {wavesCompletedSinceLastRelic}. Notifying relic completion directly.");
+                // If not offering relics, immediately notify EnemySpawner that relic phase is also complete
+                Time.timeScale = 1f; // Ensure game resumes if it was paused by spell reward
+                enemySpawner.OnRelicRewardCompleted();
+            }
         }
         else
         {
-            Debug.LogError("SpellRewardManager: EnemySpawner reference is null, cannot notify completion.");
-            // Resume game if no EnemySpawner reference
-            Time.timeScale = 1f;
+            Debug.LogError("SpellRewardManager: EnemySpawner reference is null, cannot notify completion or offer relics.");
+            Time.timeScale = 1f; // Resume game if no EnemySpawner reference
         }
     }
 
@@ -372,6 +397,7 @@ public class SpellRewardManager : MonoBehaviour, IRewardManager
             Destroy(child.gameObject);
         }
         offeredRelics.Clear();
+        wavesCompletedSinceLastRelic = 0; // Reset counter as a relic reward cycle was completed
 
         // Resume game and notify EnemySpawner that relic reward is complete
         Time.timeScale = 1f;
@@ -404,6 +430,7 @@ public class SpellRewardManager : MonoBehaviour, IRewardManager
             Destroy(child.gameObject);
         }
         offeredRelics.Clear();
+        wavesCompletedSinceLastRelic = 0; // Reset counter as a relic reward cycle was completed (even if skipped)
         
         // Resume game and notify EnemySpawner that relic reward is complete
         Time.timeScale = 1f;
