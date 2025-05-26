@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 using UnityEngine.UI; // Added for Button functionality
+using System.IO; // Required for Path
+using Newtonsoft.Json; // Required for JsonConvert
 
 public class PlayerController : MonoBehaviour
 {
@@ -14,7 +16,9 @@ public class PlayerController : MonoBehaviour
     public SpellUIContainer spellUIContainer; // Reference to the container for multiple spell UIs
 
     public int speed = 5; // Default speed, will be updated by RPN
-    public int spellPower; // Player's spell power
+    public int spellPower; // Player\'s spell power
+    public string characterClass = "mage"; // Default character class
+    private CharacterClassData classData;
 
     public Unit unit;
     public EnemySpawner enemySpawner;
@@ -49,6 +53,7 @@ public class PlayerController : MonoBehaviour
 
         // Initialize SpellBuilder
         spellBuilder = new SpellBuilder();
+        LoadCharacterClassData();
 
         if (enemySpawner == null)
         {
@@ -174,8 +179,13 @@ public class PlayerController : MonoBehaviour
             // Add "base" if any RPN expression uses it, e.g. { "base", 0 }
         };
 
-        // Player HP: "95 wave 5 * +"
-        int newMaxHp = RPNEvaluator.EvaluateInt("95 wave 5 * +", rpnVariables);
+        if (classData == null) {
+            Debug.LogError("Class data is not loaded. Cannot update stats.");
+            return;
+        }
+
+        // Player HP
+        int newMaxHp = RPNEvaluator.EvaluateInt(classData.health, rpnVariables);
         if (hp == null) { // Should be initialized in StartLevel
             hp = new Hittable(newMaxHp, Hittable.Team.PLAYER, gameObject);
             hp.OnDeath += Die;
@@ -184,10 +194,10 @@ public class PlayerController : MonoBehaviour
         }
         if (healthui != null) healthui.SetHealth(hp);
 
-        // Player Mana: "90 wave 10 * +"
-        int newMaxMana = RPNEvaluator.EvaluateInt("90 wave 10 * +", rpnVariables);
-        // Player Mana Regen: "10 wave +"
-        int newManaRegen = RPNEvaluator.EvaluateInt("10 wave +", rpnVariables);
+        // Player Mana
+        int newMaxMana = RPNEvaluator.EvaluateInt(classData.mana, rpnVariables);
+        // Player Mana Regen: "10 wave +" // Assuming this is a default or will be moved to classData
+        int newManaRegen = RPNEvaluator.EvaluateInt("10 wave +", rpnVariables); // Or use classData.manaRegen if defined
 
         if (spellcaster == null) { // Should be initialized in StartLevel
              spellcaster = new SpellCaster(newMaxMana, newManaRegen, Hittable.Team.PLAYER, 0, this); // Pass 'this'
@@ -200,14 +210,12 @@ public class PlayerController : MonoBehaviour
         }
         if (manaui != null) manaui.SetSpellCaster(spellcaster);
 
-        // Player Spell Power: "wave 10 *"
-        // For "wave 10 *", power variable is not used by the expression itself.
-        this.spellPower = RPNEvaluator.EvaluateInt("wave 10 *", rpnVariables);
+        // Player Spell Power
+        this.spellPower = RPNEvaluator.EvaluateInt(classData.spellpower, rpnVariables);
         if(spellcaster != null) spellcaster.spellPower = this.spellPower;
 
-        // Player Speed: "5"
-        // For "5", no variables are used by the expression.
-        this.speed = RPNEvaluator.EvaluateInt("5", rpnVariables);
+        // Player Speed
+        this.speed = RPNEvaluator.EvaluateInt(classData.speed, rpnVariables);
         if(unit != null) {
             // Unit speed is not directly set like this, movement vector is scaled by speed.
             // The existing OnMove method uses this.speed, so just updating it is enough.
@@ -454,14 +462,6 @@ public class PlayerController : MonoBehaviour
     void OnSpell1(InputValue value) { if (value.isPressed) SelectSpell(0); }
     void OnSpell2(InputValue value) { if (value.isPressed) SelectSpell(1); }
     void OnSpell3(InputValue value) { if (value.isPressed) SelectSpell(2); }
-    void OnSpell4(InputValue value) { if (value.isPressed) SelectSpell(3); }
-
-    // Input actions for spell selection (Numpad 1, 2, 3, 4 keys)
-    void OnSpellNumpad1(InputValue value) { if (value.isPressed) SelectSpell(0); }
-    void OnSpellNumpad2(InputValue value) { if (value.isPressed) SelectSpell(1); }
-    void OnSpellNumpad3(InputValue value) { if (value.isPressed) SelectSpell(2); }
-    void OnSpellNumpad4(InputValue value) { if (value.isPressed) SelectSpell(3); }
-
 
     public void UpdatePlayerSpellsUI()
     {
