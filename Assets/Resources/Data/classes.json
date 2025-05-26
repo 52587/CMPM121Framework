@@ -1,8 +1,0 @@
-{
-  "mage": {
-    "health": "95 wave 5 * +",
-    "mana": "90 wave 10 * +",
-    "spellpower": "wave 10 * +",
-    "speed": "8"
-  }
-}

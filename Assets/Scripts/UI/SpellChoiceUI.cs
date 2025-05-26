@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI; // Required if you use standard UI elements like Button, Image
 using TMPro; // Required if you use TextMeshPro elements
-// Add any other necessary using directives
 
 public class SpellChoiceUI : MonoBehaviour
 {
@@ -30,16 +29,16 @@ public class SpellChoiceUI : MonoBehaviour
             }
             else
             {
-                // Debug.LogWarning("SpellChoiceUI: spellIcon GameObject does not have an Image component.");
+                Debug.LogWarning("SpellChoiceUI: spellIcon GameObject does not have an Image component.");
             }
         }
         else if (spellIcon == null)
         {
-            // Debug.LogWarning("SpellChoiceUI: spellIcon is not assigned in the Inspector.");
+            Debug.LogWarning("SpellChoiceUI: spellIcon is not assigned in the Inspector.");
         }
         else
         {
-            // Debug.LogWarning("SpellChoiceUI: GameManager.Instance or spellIconManager is null. Cannot set spell icon.");
+            Debug.LogWarning("SpellChoiceUI: GameManager.Instance or spellIconManager is null. Cannot set spell icon.");
         }
 
         if (spellNameText != null)
@@ -55,23 +54,6 @@ public class SpellChoiceUI : MonoBehaviour
             spellDescriptionText.text = "Spell Description Placeholder";
         }
 
-        // The main logic for setting the icon is now at the beginning of this Setup method.
-        // The commented-out lines below are now redundant.
-        /*
-        if (spellIcon != null)
-        {
-            // Assuming Spell class has GetIcon() that returns a Sprite
-            // and you have a way to load/assign it.
-            // For example, if GetIcon() returns a Sprite directly:
-            // spellIcon.sprite = spell.GetIcon();
-            // If GetIcon() returns a string path to a resource, you'd load it:
-            // spellIcon.sprite = Resources.Load<Sprite>(spell.GetIconPath());
-            // Or, if you have a SpellIconManager as hinted in your original SpellRewardManager:
-            // GameManager.Instance.spellIconManager.PlaceSprite(spell.GetIcon(), spellIcon);
-            // For now, let's assume you'll set this up later or it's handled elsewhere.
-        }
-        */
-
         if (selectButton != null)
         {
             selectButton.onClick.RemoveAllListeners(); // Clear previous listeners
@@ -79,7 +61,7 @@ public class SpellChoiceUI : MonoBehaviour
         }
         else
         {
-            // Debug.LogError("SpellChoiceUI: Select Button is not assigned in the Inspector.");
+            Debug.LogError("SpellChoiceUI: Select Button is not assigned in the Inspector.");
         }
     }
 
@@ -91,16 +73,15 @@ public class SpellChoiceUI : MonoBehaviour
         }
         else
         {
-            // Debug.LogError("SpellChoiceUI: RewardManager reference is null.");
+            Debug.LogError("SpellChoiceUI: RewardManager reference is null.");
         }
     }
 
     void Start()
     {
-        // Debug.LogError("SpellChoiceUI: Select Button is not assigned in the Inspector.");
         if (selectButton == null)
         {
-            // Debug.LogError("SpellChoiceUI: Select Button is not assigned in the Inspector.");
+            Debug.LogError("SpellChoiceUI: Select Button is not assigned in the Inspector.");
             return; // Early exit if button is not assigned
         }
 
@@ -114,7 +95,7 @@ public class SpellChoiceUI : MonoBehaviour
 
         if (rewardManager == null)
         {
-            // Debug.LogError("SpellChoiceUI: RewardManager reference is null.");
+            Debug.LogError("SpellChoiceUI: RewardManager reference is null.");
             // Potentially disable the button or show an error state
         }
 
@@ -127,16 +108,16 @@ public class SpellChoiceUI : MonoBehaviour
             }
             else
             {
-                // Debug.LogWarning("SpellChoiceUI: spellIcon GameObject does not have an Image component.");
+                Debug.LogWarning("SpellChoiceUI: spellIcon GameObject does not have an Image component.");
             }
         }
         else if (spellIcon == null)
         {
-            // Debug.LogWarning("SpellChoiceUI: spellIcon is not assigned in the Inspector.");
+            Debug.LogWarning("SpellChoiceUI: spellIcon is not assigned in the Inspector.");
         }
         else
         {
-            // Debug.LogWarning("SpellChoiceUI: GameManager.Instance or spellIconManager is null. Cannot set spell icon.");
+            Debug.LogWarning("SpellChoiceUI: GameManager.Instance or spellIconManager is null. Cannot set spell icon.");
         }
 
         // Update Spell Name Text

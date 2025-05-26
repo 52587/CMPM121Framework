@@ -7,5 +7,4 @@ public class SpellIconManager : IconManager
     {
         GameManager.Instance.spellIconManager = this;
     }
-
 }

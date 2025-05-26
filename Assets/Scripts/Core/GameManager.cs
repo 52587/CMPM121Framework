@@ -14,7 +14,8 @@ public class GameManager : MonoBehaviour
         INWAVE,
         WAVEEND,
         COUNTDOWN,
-        GAMEOVER
+        GAMEOVER,
+        WIN // Added WIN state
     }
     public GameState state;
     public int currentWave = 0; // Ensure currentWave is public or has a public getter
@@ -58,11 +59,12 @@ public class GameManager : MonoBehaviour
 
     public void AddEnemy(GameObject enemy)
     {
+        if (enemies == null) enemies = new List<GameObject>(); // Ensure list is initialized
         enemies.Add(enemy);
     }
     public void RemoveEnemy(GameObject enemy)
     {
-        if (enemies.Remove(enemy))
+        if (enemies != null && enemies.Remove(enemy)) // Ensure list exists before removing
         {
             enemiesKilledThisWave++; // Increment killed count for the wave
         }

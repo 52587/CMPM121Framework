@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 using UnityEngine.UI; // Added for Button functionality
-using System.IO; // Required for Path
-using Newtonsoft.Json; // Required for JsonConvert
+using System.IO; 
+using Newtonsoft.Json;
 
 public class PlayerController : MonoBehaviour
 {
@@ -16,9 +16,10 @@ public class PlayerController : MonoBehaviour
     public SpellUIContainer spellUIContainer; // Reference to the container for multiple spell UIs
 
     public int speed = 5; // Default speed, will be updated by RPN
-    public int spellPower; // Player\'s spell power
-    public string characterClass = "mage"; // Default character class
+    public int spellPower; // Player\\\'s spell power
+    public string characterClass = "mage"; // Default character class, can be changed
     private CharacterClassData classData;
+    private PlayerSpriteManager spriteManager;
 
     public Unit unit;
     public EnemySpawner enemySpawner;
@@ -38,6 +39,7 @@ public class PlayerController : MonoBehaviour
 
     void Awake()
     {
+        Debug.Log("[PlayerController] Awake called.");
         unit = GetComponent<Unit>();
         if (unit == null)
         {
@@ -49,11 +51,19 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
+        Debug.Log("[PlayerController] Start called.");
         GameManager.Instance.player = gameObject;
+        spriteManager = FindAnyObjectByType<PlayerSpriteManager>(); // Corrected to FindAnyObjectByType
+        if (spriteManager == null)
+        {
+            Debug.LogWarning("[PlayerController] PlayerSpriteManager not found in scene. Player sprite might not change based on class.");
+        }
+        Debug.Log("[PlayerController] SpriteManager initialized.");
 
         // Initialize SpellBuilder
         spellBuilder = new SpellBuilder();
-        LoadCharacterClassData();
+        Debug.Log("[PlayerController] SpellBuilder initialized.");
+        // LoadCharacterClassData is now called after class selection via SetCharacterClass
 
         if (enemySpawner == null)
         {
@@ -80,13 +90,49 @@ public class PlayerController : MonoBehaviour
         // Initialize SpellBuilder if GameManager exists
         if (GameManager.Instance != null)
         {
-            // Initialize with a basic spell
             InitializeSpells();
+            Debug.Log("[PlayerController] Initialized spells.");
         }
+    }
+
+    public void SetCharacterClass(string className)
+    {
+        Debug.Log($"[PlayerController] SetCharacterClass called with className: {className}");
+        characterClass = className;
+        LoadCharacterClassData(); // Load data for the newly set class
+
+        if (classData != null && spriteManager != null)
+        {
+            Sprite newSprite = spriteManager.GetSpriteAtIndex(classData.sprite); // Use the new public method
+            if (newSprite != null)
+            {
+                SpriteRenderer sr = GetComponent<SpriteRenderer>();
+                if (sr != null)
+                {
+                    sr.sprite = newSprite;
+                    Debug.Log($"[PlayerController] Player sprite set to {newSprite.name} for class {className}.");
+                }
+                else
+                {
+                    Debug.LogWarning("[PlayerController] SpriteRenderer component not found on player. Cannot change sprite.");
+                }
+            }
+            // else: Warning already logged by GetSpriteAtIndex
+        }
+        else if (classData == null)
+        {
+            Debug.LogError($"[PlayerController] Could not set character class specifics because classData for '{className}' is null after LoadCharacterClassData.");
+        }
+        else if (spriteManager == null)
+        {
+            Debug.LogWarning($"[PlayerController] SpriteManager is null in SetCharacterClass. Cannot change sprite for class {className}.");
+        }
+        // After setting class, stats will be updated by UpdateStatsForWave when a level/wave starts.
     }
 
     public void InitializeSpells()
     {
+        Debug.Log("[PlayerController] InitializeSpells called.");
         // Create a default SpellCaster for initialization purposes
         // This SpellCaster might be temporary or updated when stats are fully calculated
         spellcaster = new SpellCaster(100, 5, Hittable.Team.PLAYER, 0, this);
@@ -106,6 +152,7 @@ public class PlayerController : MonoBehaviour
 
     public void StartLevel()
     {
+        Debug.Log("[PlayerController] StartLevel called.");
         // Initial stats are set by UpdateStatsForWave(0) or UpdateStatsForWave(1)
         // The GameManager will call UpdateStatsForWave.
 
@@ -119,6 +166,7 @@ public class PlayerController : MonoBehaviour
         // HP is also set by UpdateStatsForWave
         hp = new Hittable(1, Hittable.Team.PLAYER, gameObject); // Initial dummy HP
         hp.OnDeath += Die;
+        Debug.Log("[PlayerController] HP initialized for level start.");
 
         if (healthui != null)
         {
@@ -132,6 +180,7 @@ public class PlayerController : MonoBehaviour
         if (manaui != null)
         {
             manaui.SetSpellCaster(spellcaster);
+            Debug.Log("[PlayerController] ManaUI updated for level start.");
         }
         else
         {
@@ -169,24 +218,33 @@ public class PlayerController : MonoBehaviour
 
     public void UpdateStatsForWave(int wave)
     {
+        Debug.Log($"[PlayerController] UpdateStatsForWave called for wave: {wave}, class: {characterClass}");
         float currentWave = (float)wave;
-        float currentPower = (float)this.spellPower;
+        // float currentPower = (float)this.spellPower; // currentPower is not used by current RPNs for mage
 
         var rpnVariables = new Dictionary<string, float>
         {
-            { "wave", currentWave },
-            { "power", currentPower }
-            // Add "base" if any RPN expression uses it, e.g. { "base", 0 }
+            { "wave", currentWave }
+            // { "power", currentPower } // Add if RPNs use current power
+            // Add \"base\" if any RPN expression uses it, e.g. { \"base\", 0 }
         };
 
         if (classData == null) {
-            Debug.LogError("Class data is not loaded. Cannot update stats.");
-            return;
+            Debug.LogError($"[PlayerController] Class data for '{characterClass}' is not loaded in UpdateStatsForWave. Attempting to reload.");
+            // Fallback to some default behavior or stop?
+            // For now, let's try to load it again, or use very basic defaults.
+            LoadCharacterClassData(); // Attempt to reload
+            if (classData == null)
+            {
+                Debug.LogError("[PlayerController] Failed to reload class data in UpdateStatsForWave. Stats will not be updated correctly.");
+                return;
+            }
+            Debug.Log("[PlayerController] Successfully reloaded class data in UpdateStatsForWave.");
         }
 
         // Player HP
         int newMaxHp = RPNEvaluator.EvaluateInt(classData.health, rpnVariables);
-        if (hp == null) { // Should be initialized in StartLevel
+        if (hp == null) { 
             hp = new Hittable(newMaxHp, Hittable.Team.PLAYER, gameObject);
             hp.OnDeath += Die;
         } else {
@@ -194,18 +252,17 @@ public class PlayerController : MonoBehaviour
         }
         if (healthui != null) healthui.SetHealth(hp);
 
-        // Player Mana
+        // Player Mana & Mana Regen
         int newMaxMana = RPNEvaluator.EvaluateInt(classData.mana, rpnVariables);
-        // Player Mana Regen: "10 wave +" // Assuming this is a default or will be moved to classData
-        int newManaRegen = RPNEvaluator.EvaluateInt("10 wave +", rpnVariables); // Or use classData.manaRegen if defined
+        int newManaRegen = RPNEvaluator.EvaluateInt(classData.mana_regeneration, rpnVariables);
+        Debug.Log($"[PlayerController] Calculated for wave {wave}: MaxMana={newMaxMana}, ManaRegen={newManaRegen} from RPN: M='{classData.mana}', MR='{classData.mana_regeneration}'");
 
-        if (spellcaster == null) { // Should be initialized in StartLevel
-             spellcaster = new SpellCaster(newMaxMana, newManaRegen, Hittable.Team.PLAYER, 0, this); // Pass 'this'
+        if (spellcaster == null) { 
+             spellcaster = new SpellCaster(newMaxMana, newManaRegen, Hittable.Team.PLAYER, 0, this);
              StartCoroutine(spellcaster.ManaRegeneration());
         } else {
             spellcaster.max_mana = newMaxMana;
-            // Preserve current mana percentage if you want, or just set it
-            spellcaster.mana = Mathf.Min(spellcaster.mana, newMaxMana); // Cap current mana to new max
+            spellcaster.mana = Mathf.Min(spellcaster.mana, newMaxMana); 
             spellcaster.mana_reg = newManaRegen;
         }
         if (manaui != null) manaui.SetSpellCaster(spellcaster);
@@ -213,13 +270,12 @@ public class PlayerController : MonoBehaviour
         // Player Spell Power
         this.spellPower = RPNEvaluator.EvaluateInt(classData.spellpower, rpnVariables);
         if(spellcaster != null) spellcaster.spellPower = this.spellPower;
+        Debug.Log($"[PlayerController] Calculated for wave {wave}: SpellPower={this.spellPower} from RPN: '{classData.spellpower}'");
 
         // Player Speed
         this.speed = RPNEvaluator.EvaluateInt(classData.speed, rpnVariables);
-        if(unit != null) {
-            // Unit speed is not directly set like this, movement vector is scaled by speed.
-            // The existing OnMove method uses this.speed, so just updating it is enough.
-        }
+        Debug.Log($"[PlayerController] Calculated for wave {wave}: Speed={this.speed} from RPN: '{classData.speed}'");
+        // Unit speed is used in OnMove, so updating this.speed is sufficient.
 
         // Update spellcaster for all current spells
         foreach(Spell s in spells)
@@ -229,6 +285,7 @@ public class PlayerController : MonoBehaviour
 
         // Debug.Log($"Player stats updated for wave {wave}: HP={hp.max_hp}, Mana={spellcaster.max_mana}, Regen={spellcaster.mana_reg}, Power={this.spellPower}, Speed={this.speed}");
         UpdatePlayerSpellsUI();
+        Debug.Log($"[PlayerController] Player stats fully updated for wave {wave}: HP={hp.max_hp}, Mana={spellcaster.max_mana}, Regen={spellcaster.mana_reg}, Power={this.spellPower}, Speed={this.speed}");
     }
 
     void Update()
@@ -462,6 +519,14 @@ public class PlayerController : MonoBehaviour
     void OnSpell1(InputValue value) { if (value.isPressed) SelectSpell(0); }
     void OnSpell2(InputValue value) { if (value.isPressed) SelectSpell(1); }
     void OnSpell3(InputValue value) { if (value.isPressed) SelectSpell(2); }
+    void OnSpell4(InputValue value) { if (value.isPressed) SelectSpell(3); }
+
+    // Input actions for spell selection (Numpad 1, 2, 3, 4 keys)
+    void OnSpellNumpad1(InputValue value) { if (value.isPressed) SelectSpell(0); }
+    void OnSpellNumpad2(InputValue value) { if (value.isPressed) SelectSpell(1); }
+    void OnSpellNumpad3(InputValue value) { if (value.isPressed) SelectSpell(2); }
+    void OnSpellNumpad4(InputValue value) { if (value.isPressed) SelectSpell(3); }
+
 
     public void UpdatePlayerSpellsUI()
     {
@@ -583,4 +648,43 @@ public class PlayerController : MonoBehaviour
             // Debug.LogError("GameManager.Instance is null, cannot set game state to GAMEOVER.");
         }
     }
+
+    public void LoadCharacterClassData() // Made public to be callable by EnemySpawner after class selection
+    {
+        Debug.Log($"[PlayerController] LoadCharacterClassData called for class: {characterClass}");
+        TextAsset classesJsonText = Resources.Load<TextAsset>("classes");
+        if (classesJsonText == null)
+        {
+            Debug.LogError("[PlayerController] Failed to load classes.json from Resources.");
+            classData = null; // Ensure classData is null if loading fails
+            return;
+        }
+        Debug.Log("[PlayerController] classes.json loaded from Resources.");
+
+        try
+        {
+            var allClasses = JsonConvert.DeserializeObject<Dictionary<string, CharacterClassData>>(classesJsonText.text);
+            if (allClasses == null)
+            {
+                Debug.LogError("[PlayerController] Failed to deserialize classes.json (result is null).");
+                classData = null;
+                return;
+            }
+
+            if (allClasses.TryGetValue(characterClass, out CharacterClassData loadedData))
+            {
+                this.classData = loadedData;
+                Debug.Log($"[PlayerController] Successfully loaded data for class: {characterClass}. Sprite index: {classData.sprite}, Health RPN: {classData.health}");
+            }
+            else
+            {
+                Debug.LogError($"[PlayerController] Class '{characterClass}' not found in classes.json.");
+                this.classData = null; // Ensure classData is null if class not found
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[PlayerController] Exception during JSON deserialization or processing for classes.json: {e.Message}\n{e.StackTrace}");
+            this.classData = null;
+        }    }
 }

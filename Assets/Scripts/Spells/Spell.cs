@@ -115,9 +115,7 @@ public class Spell
     {
         string cooldownExpr = spellData?["cooldown"]?.Value<string>() ?? "1";
         return RPNEvaluator.EvaluateFloat(cooldownExpr, GetRPNVariables());
-    }
-
-    public virtual int GetIcon()
+    }    public virtual int GetIcon()
     {
         // Ensure icon is treated as int. If it\'s a string in JSON, parse it.
         JToken iconToken = spellData?["icon"];
@@ -125,16 +123,20 @@ public class Spell
         {
             if (iconToken.Type == JTokenType.Integer)
             {
-                return iconToken.Value<int>();
+                int iconIndex = iconToken.Value<int>();
+                Debug.Log($"Spell {GetName()}: Returning icon index {iconIndex}");
+                return iconIndex;
             }
             else if (iconToken.Type == JTokenType.String)
             {
                 if (int.TryParse(iconToken.Value<string>(), out int iconVal))
                 {
+                    Debug.Log($"Spell {GetName()}: Parsed icon index {iconVal} from string");
                     return iconVal;
                 }
             }
         }
+        Debug.LogWarning($"Spell {GetName()}: No valid icon found, returning default 0");
         return 0; // Default icon
     }
 

@@ -15,11 +15,32 @@ public class IconManager : MonoBehaviour
     void Update()
     {
         
-    }
-
-    public void PlaceSprite(int which, Image target)
+    }    public void PlaceSprite(int which, Image target)
     {
-        target.sprite = sprites[which];
+        if (sprites == null)
+        {
+            Debug.LogError("IconManager: sprites array is null!");
+            return;
+        }
+        
+        if (which < 0 || which >= sprites.Length)
+        {
+            Debug.LogError($"IconManager: Invalid sprite index {which}. Array length: {sprites.Length}");
+            return;
+        }
+        
+        if (target == null)
+        {
+            Debug.LogError("IconManager: Target Image is null!");
+            return;
+        }
+        
+        if (sprites[which] == null)
+        {
+            Debug.LogError($"IconManager: Sprite at index {which} is null!");
+            return;
+        }
+          target.sprite = sprites[which];
     }
 
     public Sprite Get(int index)

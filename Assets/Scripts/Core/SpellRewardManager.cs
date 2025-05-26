@@ -92,22 +92,35 @@ public class SpellRewardManager : MonoBehaviour, IRewardManager
         }
     }
 
+    public bool ShouldOfferSpellReward() // Added method
+    {
+        // Basic implementation, always offer spell rewards if panel and prefab exist
+        return spellRewardUIPanel != null && spellChoicePrefab != null;
+    }
+
+    public bool ShouldOfferRelicReward() // Added method
+    {
+        // Basic implementation, always offer relic rewards if panel and prefab exist
+        return relicRewardUIPanel != null && relicChoicePrefab != null;
+    }
+
     /// <summary>
     /// Generates a specified number of spell choices and displays them to the player.
     /// </summary>
     /// <param name="numberOfChoices">How many spell options to offer.</param>
-    public void OfferSpellRewards(int numberOfChoices = 3)
+    /// <returns>True if rewards were offered, false otherwise.</returns>
+    public bool OfferSpellRewards(int numberOfChoices = 3)
     {
         if (playerController == null || spellBuilder == null)
         {
             Debug.LogError("SpellRewardManager cannot offer rewards: PlayerController or SpellBuilder is missing.");
-            return;
+            return false;
         }
 
         if (spellRewardUIPanel == null || spellChoicePrefab == null || spellChoiceParent == null)
         {
             Debug.LogError("SpellRewardManager cannot offer rewards: UI elements not assigned.");
-            return;
+            return false;
         }
 
         // Clear previous choices
@@ -139,7 +152,9 @@ public class SpellRewardManager : MonoBehaviour, IRewardManager
         else
         {
             Debug.LogWarning("SpellRewardManager: No spells generated for reward.");
+            return false; // No rewards offered if no spells generated
         }
+        return true; // Rewards were offered
     }
 
     private void CreateSpellChoiceUI(Spell spell, int choiceIndex)
@@ -241,24 +256,25 @@ public class SpellRewardManager : MonoBehaviour, IRewardManager
     }
 
     /// <summary>
-    /// Generates a specified number of relic choices and displays them to the player.
+    /// Offers relic rewards to the player.
     /// </summary>
-    /// <param name="numberOfChoices">How many relic options to offer.</param>
-    public void OfferRelicRewards(int numberOfChoices = 3)
+    /// <param name="numberOfChoices">Number of relic choices to offer.</param>
+    /// <returns>True if relic rewards were successfully offered, false otherwise.</returns>
+    public bool OfferRelicRewards(int numberOfChoices = 3)
     {
-        if (playerController == null || relicBuilder == null)
-        {
-            Debug.LogError("SpellRewardManager cannot offer relic rewards: PlayerController or RelicBuilder is missing.");
-            return;
-        }
-
         if (relicRewardUIPanel == null || relicChoicePrefab == null || relicChoiceParent == null)
         {
-            Debug.LogError("SpellRewardManager cannot offer relic rewards: UI elements not assigned.");
-            return;
+            Debug.LogWarning("Relic reward UI components not fully assigned. Cannot offer relic rewards.");
+            return false;
         }
 
-        // Clear previous choices
+        if (relicBuilder == null)
+        {
+            Debug.LogError("RelicBuilder not initialized. Cannot offer relic rewards.");
+            return false;
+        }
+
+        // Clear previous relic choices
         foreach (Transform child in relicChoiceParent)
         {
             Destroy(child.gameObject);
@@ -268,45 +284,52 @@ public class SpellRewardManager : MonoBehaviour, IRewardManager
         // Generate new relic choices
         for (int i = 0; i < numberOfChoices; i++)
         {
-            // Assuming RelicBuilder.Build() creates a random relic
-            RelicJsonData newRelic = relicBuilder.Build();
-            if (newRelic != null)
+            RelicJsonData newRelicData = relicBuilder.GetRandomRelicData(); 
+            if (newRelicData != null)
             {
-                offeredRelics.Add(newRelic);
-                CreateRelicChoiceUI(newRelic, i);
+                offeredRelics.Add(newRelicData);
+                CreateRelicChoiceUI(newRelicData, i); 
             }
         }
 
         if (offeredRelics.Count > 0)
         {
             relicRewardUIPanel.SetActive(true);
-            // Pause the game when showing relic rewards
-            Time.timeScale = 0f;
-            Debug.Log($"[SpellRewardManager] Game paused for relic selection. Time.timeScale = {Time.timeScale}");
+            Time.timeScale = 0f; // Pause game
+            Debug.Log("[SpellRewardManager] Game paused for relic selection.");
+            return true;
         }
         else
         {
             Debug.LogWarning("SpellRewardManager: No relics generated for reward.");
+            return false;
         }
     }
 
-    private void CreateRelicChoiceUI(RelicJsonData relic, int choiceIndex)
+    private void CreateRelicChoiceUI(RelicJsonData relicData, int choiceIndex)
     {
+        if (relicChoicePrefab == null)
+        {
+            Debug.LogError("SpellRewardManager: relicChoicePrefab is not assigned. Cannot create relic choice UI.");
+            return;
+        }
+        if (relicChoiceParent == null)
+        {
+            Debug.LogError("SpellRewardManager: relicChoiceParent is not assigned. Cannot create relic choice UI.");
+            return;
+        }
+
         GameObject choiceGO = Instantiate(relicChoicePrefab, relicChoiceParent);
-        // Assuming the relicChoicePrefab has a script (e.g., RelicChoiceUI) to set up its display
         RelicChoiceUI choiceUI = choiceGO.GetComponent<RelicChoiceUI>();
         if (choiceUI != null)
         {
-            // Use the IRewardManager interface overload
-            choiceUI.Setup(relic, choiceIndex, (IRewardManager)this);
+            choiceUI.Setup(relicData, choiceIndex, this); // Pass 'this' as IRewardManager
         }
         else
         {
-            Debug.LogError($"RelicChoicePrefab is missing RelicChoiceUI script or similar for relic: {relic.name}");
-            // Basic fallback: set the name if there's a Text component
-            // Text relicNameText = choiceGO.GetComponentInChildren<Text>(); // For legacy UI Text
-            // if (relicNameText != null) relicNameText.text = relic.name;
+            Debug.LogError($"SpellRewardManager: relicChoicePrefab is missing RelicChoiceUI script for relic: {relicData.name}");
         }
+        // Debug.Log($"Placeholder: Displaying relic choice {choiceIndex}: {relicData.name}"); // Can be removed or kept for logging
     }
 
     /// <summary>
